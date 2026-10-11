@@ -1,4 +1,6 @@
 import argparse
+import fnmatch
+import hashlib
 import json
 import os
 import re
@@ -21,11 +23,69 @@ AXE_URLS = [
     f"https://cdn.jsdelivr.net/npm/axe-core@{AXE_VERSION}/axe.min.js",
 ]
 
+DESTRUCTIVE_PATTERN = (
+    r"(supprim|effac|delete|remove|retirer|vider|purge|pay|payer|paiement|achet|buy|checkout|commander|order now|"
+    r"valider (la |ma )?commande|confirmer (l'achat|le paiement|la commande)|envoyer|send|publier|publish|"
+    r"d[ée]connex|logout|log out|sign out|se d[ée]connecter|d[ée]sinscri|unsubscribe|r[ée]silier|"
+    r"cancel subscription|transf[ée]r|reset|r[ée]initialis|archiver|bannir|ban )"
+)
+SETTING_PATTERN = (
+    r"(th[eè]me|mode sombre|mode clair|sombre|clair|dark|light|langue|language|lang|locale|devise|currency|"
+    r"taille du texte|font|police|contraste|contrast|densit[ée]|density|affichage|display|vue|view|tri|sort|"
+    r"filtr|filter|unit[ée]|pays|country|r[ée]gion|fuseau|timezone)"
+)
+SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+LOAD_IMAGES_JS = """
+async () => {
+  document.querySelectorAll('img[loading=lazy], iframe[loading=lazy]').forEach((node) => { node.loading = 'eager'; });
+  const pending = [...document.images].filter((img) => !img.complete);
+  await Promise.all(pending.map((img) => new Promise((done) => { img.addEventListener('load', done, { once: true }); img.addEventListener('error', done, { once: true }); setTimeout(done, 3000); })));
+  await Promise.all([...document.images].filter((img) => img.complete && img.naturalWidth && img.decode).map((img) => img.decode().catch(() => null)));
+  return pending.length;
+}
+"""
+
 FREEZE_MOTION_CSS = (
     "*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;"
     "animation-iteration-count:1!important;transition-duration:0s!important;"
     "transition-delay:0s!important;caret-color:transparent!important;scroll-behavior:auto!important}"
 )
+
+
+UI_EXTENSIONS = {".css", ".scss", ".sass", ".less", ".styl", ".pcss", ".html", ".htm", ".vue", ".svelte", ".astro",
+                 ".jsx", ".tsx", ".mdx", ".twig", ".erb", ".hbs", ".njk", ".liquid", ".razor", ".cshtml",
+                 ".swift", ".dart", ".xaml", ".storyboard", ".xib"}
+UI_PATH_HINTS = ("components/", "component/", "pages/", "views/", "screens/", "layouts/", "ui/", "styles/", "theme",
+                 "tokens", "locales/", "i18n/", "res/layout", "res/values", "public/", "static/", "assets/")
+UI_SCRIPT_EXTENSIONS = {".js", ".ts", ".mjs", ".kt", ".json", ".svg", ".woff", ".woff2", ".ttf", ".otf"}
+AUDIT_DIRS = (".ui-audit/", "ui-scenes/")
+
+
+def is_ui_path(path, include=(), exclude=()):
+    if path.startswith(AUDIT_DIRS) or any(fnmatch.fnmatch(path, pattern) for pattern in exclude):
+        return False
+    if any(fnmatch.fnmatch(path, pattern) for pattern in include):
+        return True
+    suffix = Path(path).suffix.lower()
+    if suffix in UI_EXTENSIONS:
+        return True
+    return suffix in UI_SCRIPT_EXTENSIONS and any(hint in path.lower() for hint in UI_PATH_HINTS)
+
+
+def ui_fingerprint(root, include=(), exclude=()):
+    try:
+        listed = subprocess.run(["git", "ls-files", "-co", "--exclude-standard"], cwd=root, capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if listed.returncode != 0:
+        return None
+    digest = hashlib.sha1()
+    for path in sorted(p for p in listed.stdout.splitlines() if is_ui_path(p, include, exclude)):
+        target = Path(root) / path
+        if target.is_file():
+            digest.update(path.encode("utf-8"))
+            digest.update(hashlib.sha1(target.read_bytes()).digest())
+    return digest.hexdigest()
 
 
 class BrowserUnavailable(Exception):
@@ -282,6 +342,10 @@ def stabilize(page, args):
         page.evaluate("() => document.fonts ? document.fonts.ready.then(() => true) : true")
     except Exception:
         pass
+    try:
+        page.evaluate(LOAD_IMAGES_JS)
+    except Exception:
+        pass
     if not getattr(args, "keep_motion", False):
         try:
             page.add_style_tag(content=FREEZE_MOTION_CSS)
@@ -311,8 +375,14 @@ def run_actions(page, actions, base_url, log):
         kind, value = next(iter(step.items()))
         if kind == "goto":
             page.goto(urljoin(base_url, value), wait_until="load")
-        elif kind == "click":
+        elif kind in ("click", "click_effect"):
             page.click(value)
+        elif kind in ("snapshot", "note"):
+            pass
+        elif kind == "click_optional":
+            target = page.locator(value).first
+            if target.count() and target.is_visible():
+                target.click(timeout=3000)
         elif kind == "fill":
             page.fill(value[0], value[1])
         elif kind == "type":
@@ -340,6 +410,18 @@ def run_actions(page, actions, base_url, log):
         else:
             raise SystemExit(f"Action inconnue : {kind}")
         log.append(step)
+
+
+def install_mutation_guard(target, allow, journal):
+    def handle(route):
+        request = route.request
+        if allow or request.method in SAFE_METHODS:
+            route.continue_()
+            return
+        journal.append({"method": request.method, "url": request.url[:300]})
+        route.abort()
+
+    target.route("**/*", handle)
 
 
 def prepare_page(browser, cfg, args):

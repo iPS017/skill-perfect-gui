@@ -1,5 +1,5 @@
 {
-  "description": "Barrière ui-audit-gate : rappelle l'audit UI avant de terminer quand des fichiers d'interface ont changé sans rapport à jour.",
+  "description": "Barrières ui-audit-gate : audit UI avant de terminer, revue complète des scènes avant toute publication.",
   "hooks": {
     "Stop": [
       {
@@ -8,6 +8,18 @@
             "type": "command",
             "command": "command -v python3 >/dev/null 2>&1 && python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/gate_hook.py\" || true",
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v python3 >/dev/null 2>&1 && python3 \"${CLAUDE_PLUGIN_ROOT}/hooks/prepublish_hook.py\" || true",
+            "timeout": 60
           }
         ]
       }

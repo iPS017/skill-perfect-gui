@@ -13,6 +13,9 @@
 | `resize_probe.py` | Perte d'état au redimensionnement, clavier virtuel émulé | Playwright |
 | `visual_diff.py` | Diff pixel avant/après | Pillow |
 | `pseudo_locale.py` | Pseudo-localisation de fichiers JSON | stdlib |
+| `explore_site.py` | Inventaire de tout ce qu'un utilisateur peut faire sur le site | Playwright |
+| `generate_scenarios.py` | Suite de scènes stable, export `@playwright/test` | stdlib |
+| `play_scenarios.py` | Revue complète des scènes, références, comparaison, acceptation | Playwright, Pillow |
 | `research_log.py` | Journal de recherche et fiches de référence | stdlib |
 | `verify_report.py` | Cohérence du rapport, décision, rendu de `report.md` | stdlib |
 | `setup.sh` | Crée le venv et installe Playwright et Pillow (avec accord) | python3, réseau |

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Catalogue, séjours (site de test d'exploration)</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Aller au contenu</a>
+<header class="site-header">
+  <nav class="site-nav" aria-label="Navigation principale">
+    <ul>
+      <li><a href="index.html" data-i18n="nav.home">Accueil</a></li>
+      <li><a href="catalogue.html" aria-current="page" data-i18n="nav.catalog">Catalogue</a></li>
+    </ul>
+  </nav>
+  <div class="toolbar">
+    <div class="more">
+      <button class="btn btn-quiet" type="button" id="more-button" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" data-i18n="nav.more">Plus</button>
+      <ul class="more-menu" id="more-menu" hidden>
+        <li><a href="catalogue.html?tri=prix" data-i18n="more.help">Aide</a></li>
+        <li><a href="catalogue.html?tri=nom" data-i18n="more.about">À propos</a></li>
+      </ul>
+    </div>
+    <button class="btn btn-quiet" type="button" id="theme-toggle" aria-pressed="false" data-i18n="theme.toggle">Mode sombre</button>
+    <label for="language" data-i18n="lang.label">Langue</label>
+    <select id="language" name="langue">
+      <option value="fr">Français</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+</header>
+<main id="main">
+  <h1 data-i18n="catalog.title">Catalogue</h1>
+  <p><a href="catalogue.html?tri=prix" data-i18n="catalog.sort.price">Trier par prix</a> · <a href="catalogue.html?tri=nom" data-i18n="catalog.sort.name">Trier par nom</a></p>
+  <div class="tabs" role="tablist" aria-label="Informations">
+    <button class="btn btn-quiet" type="button" role="tab" id="tab-details" aria-selected="true" aria-controls="panel-details" data-i18n="tab.details">Détails</button>
+    <button class="btn btn-quiet" type="button" role="tab" id="tab-reviews" aria-selected="false" aria-controls="panel-reviews" data-i18n="tab.reviews">Avis</button>
+  </div>
+  <section class="tab-panel" id="panel-details" role="tabpanel" aria-labelledby="tab-details"><p data-i18n="tab.details.text">Tous les séjours incluent le linge de maison.</p></section>
+  <section class="tab-panel" id="panel-reviews" role="tabpanel" aria-labelledby="tab-reviews" hidden><p data-i18n="tab.reviews.text">Les voyageurs notent nos séjours 4,6 sur 5.</p></section>
+  <ul class="cards">
+    <li class="card"><h3 data-i18n="offer.chalet">Chalet en montagne</h3><p data-i18n="offer.chalet.text">Trois nuits, petit-déjeuner compris.</p><button class="btn" type="button" data-select-offer id="select-chalet" aria-pressed="false" data-i18n="catalog.add">Ajouter à la sélection</button></li>
+    <li class="card"><h3 data-i18n="offer.sea">Maison au bord de mer</h3><p data-i18n="offer.sea.text">Une semaine, accès direct à la plage.</p><button class="btn" type="button" data-select-offer id="select-sea" aria-pressed="false" data-i18n="catalog.add">Ajouter à la sélection</button></li>
+    <li class="card"><h3 data-i18n="offer.city">Appartement en ville</h3><p data-i18n="offer.city.text">Deux nuits, proche des musées.</p><button class="btn" type="button" data-select-offer id="select-city" aria-pressed="false" data-i18n="catalog.add">Ajouter à la sélection</button></li>
+  </ul>
+  <p class="status" id="selection-status" role="status"></p>
+  <p class="toolbar">
+    <button class="btn" type="button" id="compare-button" data-i18n="catalog.compare" onclick="document.getElementById('selection-status').textContent = 'Comparaison prête.'">Comparer</button>
+    <button class="btn" type="button" id="share-button" data-i18n="catalog.share" onclick="document.getElementById('selection-status').textContent = 'Lien copié.'">Partager</button>
+  </p>
+</main>
+<footer><p data-i18n="footer.text">Site de démonstration, aucune donnée réelle.</p></footer>
+<script src="app.js"></script>
+<script>if (window.UIAG_DEFECTS === true) document.getElementById('compare-button').style.borderRadius = '0';</script>
+</body>
+</html>

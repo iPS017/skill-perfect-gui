@@ -1,6 +1,6 @@
 {
   "name": "perfect-gui",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Barrière qualité UI/UX : audit du rendu réel (géométrie, superpositions, débordements, accessibilité, clavier, formulaires, responsive), recherche Web tracée, corrections et décision de validation prouvée avant de déclarer une interface terminée.",
   "author": {
     "name": "iPS017",

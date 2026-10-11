@@ -1,6 +1,6 @@
 # perfect-gui
 
-Plugin Claude Code qui fournit le skill `ui-audit-gate`, la commande `/perfect-gui:ui-audit` et un hook `Stop` de barrière.
+Plugin Claude Code qui fournit le skill `ui-audit-gate`, les commandes `/perfect-gui:ui-audit` (audit d'une modification) et `/perfect-gui:ui-scenes` (exploration de tout le site et revue de toutes les scènes avant publication), un hook `Stop` et un hook de pré-publication.
 
 ```
 /plugin install perfect-gui --marketplace iPS017/skill-perfect-gui
@@ -13,6 +13,7 @@ Voir le [README du dépôt](../../README.md) pour l'installation et l'utilisatio
 | Variable | Effet |
 |---|---|
 | `UI_AUDIT_GATE` | `block` (par défaut), `warn` ou `off` pour le hook Stop |
+| `UI_AUDIT_PUBLISH_GATE` | `block` (par défaut), `ask` ou `off` pour la barrière avant publication |
 | `UI_AUDIT_VENV` | Emplacement du venv (par défaut `~/.cache/ui-audit-gate/venv`) |
 | `UI_AUDIT_CACHE` | Dossier de cache (venv, axe-core) |
 | `UI_AUDIT_BROWSER` | Exécutable de navigateur à essayer en premier |

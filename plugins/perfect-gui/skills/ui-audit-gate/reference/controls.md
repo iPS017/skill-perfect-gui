@@ -25,6 +25,7 @@ Chaque contrôle porte un identifiant stable, utilisé dans `report.json` (`cont
 | état | resize_probe `--mode state` | ROB-06, FRM-04 (partiel) | Valeurs, focus, rechargement, dialogues ouverts |
 | clavier virtuel | resize_probe `--mode keyboard` | ENV-02 | Émulation du mode resizes-content seulement |
 | diff visuel | visual_diff | DS-05, DS-06 | Pixel. Chaque différence doit être interprétée. |
+| scènes | explore_site, generate_scenarios, play_scenarios | PAR-08, STK-08, COL-03, LOC-02, TXT-05, DS-03, ACC-12, NAV-06, ROB-01, plus les vérifications en page à chaque étape | Une option à la fois ; voir exploration.md |
 
 Les contrôles absents de ce tableau se mènent par revue assistée ou humaine selon leur méthode. Un contrôle n'est `reussi` que si toute sa méthode a été exécutée. Une couverture partielle par script, sans revue complémentaire, donne `non_verifie` avec la partie manquante en raison.
 
@@ -62,6 +63,7 @@ GEO-01, GEO-02, GEO-03, GEO-05, STK-01, STK-02, TXT-01, CTA-01, CTA-02, CTA-03, 
 | STK-04 | Popover, menu ou tooltip hors viewport ou mal ancré | Ouvrir près des 4 bords et à 320 px ; rect ⊂ viewport | Repositionnement (flip/shift) ; contenu entier visible | S,V | A | majeure | |
 | STK-05 | Contexte d'empilement inattendu (z-index sans effet) | Remonter les ancêtres qui créent un contexte (`transform`, `opacity<1`, `filter`, `isolation`, `position+z-index`) | Ordre d'empilement conforme à l'intention | S | As | modérée | |
 | STK-06 | Safe areas (encoche, barre d'accueil) | Émulation avec insets ; vérifier l'usage de `env(safe-area-inset-*)` et `viewport-fit=cover` le cas échéant | Aucun contrôle sous une zone non sûre | S,V | As (réel : H) | majeure | |
+| STK-08 | Défilement bloqué après fermeture d'un dialogue, d'un menu ou d'un tiroir | `overflow: hidden` ou `position: fixed` restant sur `body` ou `html` sans dialogue ouvert (`play_scenarios.py`) | Défilement restauré | C,S | A | majeure | |
 | STK-07 | Tiroir ou panneau : scroll interne, dépassement, fermeture | Contenu long dans le panneau, tabulation, Échap | Scroll interne, fermeture, focus géré | C,A | A | modérée | |
 
 ## Textes et typographie (TXT)
@@ -142,6 +144,7 @@ GEO-01, GEO-02, GEO-03, GEO-05, STK-01, STK-02, TXT-01, CTA-01, CTA-02, CTA-03, 
 | PAR-04 | États d'attente, de succès et d'erreur non conçus | Forcer chaque état (mock réseau) | Chaque état a un rendu et un message utiles | C,V | A | majeure | |
 | PAR-05 | Erreurs non récupérables, impasses | Provoquer les erreurs, vérifier les issues | Toujours une issue (réessayer, revenir, contacter) | C | As | majeure | |
 | PAR-06 | Session expirée et interruption (onglet en arrière-plan, perte réseau, appel) | Simuler l'expiration et la mise en arrière-plan | Message clair ; données préservées si possible | C | As | majeure | |
+| PAR-08 | Action sans effet (bouton mort) | Clic puis observation : DOM, URL, défilement, requêtes, nouvelle fenêtre (`play_scenarios.py`) | Toute action produit un effet ou un retour perceptible | C | A | majeure | |
 | PAR-07 | Confirmation disproportionnée (trop ou pas assez) | Revue | Proportionnée au risque | H | H | `[PRÉFÉRENCE]`/modérée | |
 
 ## Accessibilité (ACC)

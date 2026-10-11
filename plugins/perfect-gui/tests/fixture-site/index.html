@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Accueil, séjours (site de test d'exploration)</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Aller au contenu</a>
+<header class="site-header">
+  <nav class="site-nav" aria-label="Navigation principale">
+    <ul>
+      <li><a href="index.html" aria-current="page" data-i18n="nav.home">Accueil</a></li>
+      <li><a href="catalogue.html" data-i18n="nav.catalog">Catalogue</a></li>
+    </ul>
+  </nav>
+  <div class="toolbar">
+    <div class="more">
+      <button class="btn btn-quiet" type="button" id="more-button" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" data-i18n="nav.more">Plus</button>
+      <ul class="more-menu" id="more-menu" hidden>
+        <li><a href="catalogue.html?tri=prix" data-i18n="more.help">Aide</a></li>
+        <li><a href="catalogue.html?tri=nom" data-i18n="more.about">À propos</a></li>
+      </ul>
+    </div>
+    <button class="btn btn-quiet" type="button" id="theme-toggle" aria-pressed="false" data-i18n="theme.toggle">Mode sombre</button>
+    <label for="language" data-i18n="lang.label">Langue</label>
+    <select id="language" name="langue">
+      <option value="fr">Français</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+</header>
+<main id="main">
+  <h1 data-i18n="home.title">Réserver un séjour</h1>
+  <p data-i18n="home.intro">Trouvez un hébergement pour vos prochaines vacances.</p>
+  <h2 data-i18n="home.offers">Nos offres</h2>
+  <button class="btn btn-quiet" type="button" id="filter-button" aria-expanded="false" aria-controls="filters" data-i18n="filters.toggle">Filtrer les offres</button>
+  <p class="filters" id="filters" hidden data-i18n="filters.text">Filtres : prix, dates, voyageurs.</p>
+  <ul class="cards">
+    <li class="card" id="featured-card"><h3 data-i18n="offer.chalet">Chalet en montagne</h3><p data-i18n="offer.chalet.text">Trois nuits, petit-déjeuner compris.</p></li>
+    <li class="card"><h3 data-i18n="offer.sea">Maison au bord de mer</h3><p data-i18n="offer.sea.text">Une semaine, accès direct à la plage.</p></li>
+    <li class="card"><h3 data-i18n="offer.city">Appartement en ville</h3><p data-i18n="offer.city.text">Deux nuits, proche des musées.</p></li>
+  </ul>
+  <p><button class="btn" type="button" id="contact-button" data-i18n="contact.open">Nous contacter</button></p>
+  <dialog id="contact-dialog" aria-labelledby="contact-title">
+    <h2 id="contact-title" data-i18n="contact.title">Contact</h2>
+    <p data-i18n="contact.text">Écrivez-nous à l'adresse indiquée sur la réservation.</p>
+    <button class="btn" type="button" id="contact-close" data-i18n="contact.close">Fermer</button>
+  </dialog>
+  <section aria-labelledby="news-title">
+    <h2 id="news-title" data-i18n="news.title">Lettre d'information</h2>
+    <form id="newsletter" method="post" action="/api/newsletter" novalidate>
+      <div class="field">
+        <label for="news-email" data-i18n="news.email">Adresse e-mail</label>
+        <input id="news-email" name="email" type="email" autocomplete="email">
+      </div>
+      <p class="status" id="newsletter-status" role="status"></p>
+      <button class="btn" type="submit" data-i18n="news.submit">S'inscrire</button>
+    </form>
+  </section>
+  <section class="danger-zone" aria-labelledby="danger-title">
+    <h2 id="danger-title" data-i18n="danger.title">Compte</h2>
+    <button class="btn btn-danger" type="button" id="delete-account" data-i18n="danger.delete">Supprimer mon compte</button>
+  </section>
+</main>
+<footer><p data-i18n="footer.text">Site de démonstration, aucune donnée réelle.</p></footer>
+<script src="app.js"></script>
+</body>
+</html>

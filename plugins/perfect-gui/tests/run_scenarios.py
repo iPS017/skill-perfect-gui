@@ -34,13 +34,35 @@ class QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
+class DefectHandler(QuietHandler):
+    def do_GET(self):
+        path = self.translate_path(self.path)
+        if path.endswith("/"):
+            path += "index.html"
+        if path.endswith(".html") and Path(path).exists():
+            body = Path(path).read_bytes().replace(b"<head>", b"<head><script>window.UIAG_DEFECTS=true</script>", 1)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        super().do_GET()
+
+
+def serve(directory, handler_class=QuietHandler):
+    server = ThreadingHTTPServer(("127.0.0.1", 0), functools.partial(handler_class, directory=str(directory)))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server, f"http://127.0.0.1:{server.server_address[1]}"
+
+
 class Harness:
     def __init__(self, work):
         self.work = Path(work)
-        handler = functools.partial(QuietHandler, directory=str(TESTS_DIR / "fixture-app"))
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
-        self.base = f"http://127.0.0.1:{self.server.server_address[1]}/index.html"
+        self.server, origin = serve(TESTS_DIR / "fixture-app")
+        self.base = f"{origin}/index.html"
+        self.site_server, self.site = serve(TESTS_DIR / "fixture-site")
+        self.broken_server, self.broken_site = serve(TESTS_DIR / "fixture-site", DefectHandler)
 
     def url(self, scenario=None):
         return f"{self.base}?scn={scenario}" if scenario else self.base
@@ -387,6 +409,81 @@ def scn_pseudo(h):
     return out["hello"]
 
 
+def scn_explore(h):
+    suite = h.work / "ui-scenes"
+    code, data = h.script("explore_site.py", "--url", f"{h.site}/index.html", "--out", suite / "site-map.json")
+    expect(code == 0 and data["pages"] >= 4, f"exploration : {data}")
+    code, data = h.script("generate_scenarios.py", "--site-map", suite / "site-map.json", "--out", suite / "scenes.json", "--export-playwright", suite / "ui-scenes.spec.ts")
+    expect(code == 0 and data["scenes"] >= 30, f"génération : {data}")
+    scenes = json.loads((suite / "scenes.json").read_text(encoding="utf-8"))
+    titles = " ".join(s["titre"] for s in scenes["scenes"])
+    expect("Supprimer mon compte" not in titles and any("Supprimer mon compte" in n["element"] for n in scenes["non_couvert"]), "l'action destructive doit être exclue et listée")
+    close = [s for s in scenes["scenes"] if "« Fermer »" in s["titre"]]
+    expect(close and close[0]["actions"][1] == {"click": "#contact-button"}, f"le bouton Fermer doit être précédé de l'ouverture du dialogue : {close[:1]}")
+    expect({"page", "controle", "bascule", "onglet", "formulaire", "parametre-url", "reglage", "environnement"} <= set(data["par_categorie"]), f"catégories : {data['par_categorie']}")
+    spec = (suite / "ui-scenes.spec.ts").read_text(encoding="utf-8")
+    expect("toHaveScreenshot" in spec and spec.count("test(") == data["scenes"], "export Playwright incomplet")
+    ids_before = [s["id"] for s in scenes["scenes"]]
+    h.script("generate_scenarios.py", "--site-map", suite / "site-map.json", "--out", suite / "scenes.json")
+    ids_after = [s["id"] for s in json.loads((suite / "scenes.json").read_text(encoding="utf-8"))["scenes"]]
+    expect(ids_before == ids_after, "les identifiants de scènes doivent rester stables")
+
+    code, data = h.script("play_scenarios.py", "--suite", suite, "--url", f"{h.site}/", "--mode", "baseline", "--workers", "2")
+    expect(code == 0 and data["statut"] == "ok", f"référence sur la version saine : {data}")
+    code, healthy = h.script("play_scenarios.py", "--suite", suite, "--url", f"{h.site}/", "--workers", "2")
+    expect(healthy["statut"] == "ok" and healthy["bloquantes"] == 0 and healthy["changements_visuels"] == 0, f"revue de la version saine : {healthy}")
+    code, broken = h.script("play_scenarios.py", "--suite", suite, "--url", f"{h.broken_site}/", "--workers", "2")
+    expected = {"horizontal-overflow", "action-sans-effet", "defilement-bloque", "theme-non-adapte", "contenu-non-traduit", "erreur-javascript"}
+    found = set(broken["types_bloquants"])
+    expect(broken["statut"] == "echec" and expected <= found, f"défauts manquants : {expected - found} ; trouvés : {broken['types_bloquants']}")
+    expect("incoherence-style" in broken["types_autres"] and broken["changements_visuels"] > 0, f"style et diff visuel : {broken}")
+    code, accepted = h.script("play_scenarios.py", "--suite", suite, "--accept", "all")
+    expect(accepted["statut"] == "echec", "accepter les changements visuels ne doit pas effacer les anomalies bloquantes")
+    return f"{data['scenes']} scènes × 2 viewports ; saine : ok ; cassée : {sum(broken['types_bloquants'].values())} anomalies bloquantes ({', '.join(sorted(found))})"
+
+
+def scn_publish(h):
+    repo = h.work / "publish-repo"
+    repo.mkdir()
+    git(repo, "init", "-q")
+    git(repo, "config", "user.email", "test@example.com")
+    git(repo, "config", "user.name", "test")
+    (repo / "app.css").write_text("body{color:#000}\n")
+    suite = repo / "ui-scenes"
+    suite.mkdir()
+    (suite / "scenes.json").write_text(json.dumps({"scenes": [{"id": "S-0001"}]}))
+    git(repo, "add", ".")
+    git(repo, "commit", "-qm", "init")
+    sys.path.insert(0, str(SCRIPTS))
+    from _common import ui_fingerprint
+    import hashlib
+
+    def review(status):
+        (suite / "last-review.json").write_text(json.dumps({
+            "mode": "review", "statut": status, "compteurs": {"bloquantes": 0 if status == "ok" else 3, "changements_visuels": 0},
+            "empreinte_ui": ui_fingerprint(repo), "empreinte_scenes": hashlib.sha1((suite / "scenes.json").read_bytes()).hexdigest(),
+        }))
+
+    def hook(command, env=None):
+        payload = json.dumps({"cwd": str(repo), "tool_name": "Bash", "tool_input": {"command": command}})
+        result = subprocess.run([sys.executable, str(PLUGIN_DIR / "hooks" / "prepublish_hook.py")], input=payload, capture_output=True, text=True, env={**os.environ, **(env or {})}, timeout=60)
+        return json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"] if result.stdout.strip() else "allow"
+
+    expect(hook("git push origin main") == "deny", "sans revue, la publication doit être bloquée")
+    review("ok")
+    expect(hook("git push origin main") == "allow", "revue valide : publication autorisée")
+    expect(hook("ls -la") == "allow", "commande ordinaire non concernée")
+    (repo / "app.css").write_text("body{color:#111}\n")
+    expect(hook("npm publish") == "deny", "UI modifiée après la revue : blocage attendu")
+    review("ok")
+    expect(hook("vercel --prod") == "allow", "revue refaite : autorisée")
+    review("echec")
+    expect(hook("git push") == "deny", "revue en échec : blocage attendu")
+    expect(hook("git push", {"UI_AUDIT_PUBLISH_GATE": "ask"}) == "ask", "mode ask")
+    expect(hook("git push", {"UI_AUDIT_PUBLISH_GATE": "off"}) == "allow", "mode off")
+    return "bloque sans revue, après modification de l'UI et en échec ; autorise une revue valide ; modes ask et off"
+
+
 SCENARIOS = [
     ("BASE", "Version saine sans faux positif", scn_base),
     ("SCN-01", "Bouton décalé", scn_01),
@@ -407,6 +504,8 @@ SCENARIOS = [
     ("HOOK", "Hook Stop", scn_hook),
     ("IMPACT", "Analyse d'impact", scn_impact),
     ("PSEUDO", "Pseudo-localisation de fichier", scn_pseudo),
+    ("EXPLORE", "Exploration, génération et revue des scènes", scn_explore),
+    ("PUBLISH", "Barrière avant publication", scn_publish),
 ]
 
 
@@ -431,7 +530,8 @@ def main():
             status = "ÉCHEC"
             detail = str(exc) if isinstance(exc, AssertionError) else traceback.format_exc(limit=3)
         print(f"{status:5} {sid:7} {title} ({time.time() - started:.1f} s)\n      {detail}", flush=True)
-    harness.server.shutdown()
+    for server in (harness.server, harness.site_server, harness.broken_server):
+        server.shutdown()
     if args.keep or failures:
         print(f"\nArtefacts : {work}")
     else:

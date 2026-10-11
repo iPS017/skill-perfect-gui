@@ -261,6 +261,10 @@
 
   if (wants('occlusion')) {
     const items = [];
+    const modal = [...document.querySelectorAll('dialog, [aria-modal=true]')].reverse().find((d) => {
+      try { if (d.matches(':modal')) return true; } catch (e) { }
+      return d.getAttribute('aria-modal') === 'true' && visible(d);
+    });
     const layerOf = (node) => {
       for (let a = node; a && a !== document.documentElement; a = a.parentElement) {
         const position = getComputedStyle(a).position;
@@ -272,7 +276,14 @@
       const label = hit.closest && hit.closest('label');
       return !!label && label.control === el;
     };
+    const openOverlays = [
+      ...[...document.querySelectorAll('[aria-expanded=true][aria-controls]')].flatMap((t) => t.getAttribute('aria-controls').split(/\s+/).map((id) => document.getElementById(id))),
+      ...document.querySelectorAll('[role=menu], [role=listbox], [role=tooltip], dialog[open]'),
+      ...(() => { try { return [...document.querySelectorAll(':popover-open')]; } catch (e) { return []; } })(),
+    ].filter((n) => n && visible(n));
+    const insideOpenOverlay = (node) => openOverlays.some((o) => o.contains(node));
     for (const el of interactive) {
+      if (modal && !modal.contains(el)) continue;
       const r = [...el.getClientRects()].reduce((best, cur) => (cur.width * cur.height > best.width * best.height ? cur : best), rectOf(el).width && getComputedStyle(el).display !== 'inline' ? rectOf(el) : { width: 0, height: 0 });
       if (!r.width || r.bottom <= 0 || r.top >= vh || r.right <= 0 || r.left >= vw) continue;
       const cs = getComputedStyle(el);
@@ -290,6 +301,7 @@
         const ok = !!hit && (hit === el || el.contains(hit) || ownLabel(hit, el));
         if (ok) continue;
         if (hit && hit.contains(el)) { behindAncestor = true; continue; }
+        if (hit && insideOpenOverlay(hit) && !insideOpenOverlay(el)) continue;
         blockedCount += 1;
         if (p.center) blockedCenter = true;
         if (!occluder && hit) occluder = hit;

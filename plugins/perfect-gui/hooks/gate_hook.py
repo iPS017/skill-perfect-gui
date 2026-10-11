@@ -5,7 +5,6 @@ modifiés dans le dépôt git sans rapport d'audit cohérent plus récent.
 Réglages : variable UI_AUDIT_GATE=block|warn|off, ou .ui-audit/config.json
 {"gate": {"mode": "block", "include": ["*.tpl"], "exclude": ["docs/*"]}}.
 """
-import fnmatch
 import json
 import os
 import subprocess
@@ -13,27 +12,13 @@ import sys
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "skills" / "ui-audit-gate" / "scripts"
-UI_EXTENSIONS = {".css", ".scss", ".sass", ".less", ".styl", ".pcss", ".html", ".htm", ".vue", ".svelte", ".astro",
-                 ".jsx", ".tsx", ".mdx", ".twig", ".erb", ".hbs", ".njk", ".liquid", ".razor", ".cshtml",
-                 ".swift", ".dart", ".xaml", ".storyboard", ".xib"}
-UI_PATH_HINTS = ("components/", "component/", "pages/", "views/", "screens/", "layouts/", "ui/", "styles/", "theme", "tokens", "locales/", "i18n/", "res/layout", "res/values")
-SCRIPT_EXTENSIONS = {".js", ".ts", ".mjs", ".kt", ".json"}
+sys.path.insert(0, str(SCRIPTS_DIR))
+from _common import is_ui_path  # noqa: E402
 
 
 def git(*args, cwd):
     result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=10)
     return result.stdout if result.returncode == 0 else None
-
-
-def is_ui(path, include, exclude):
-    if any(fnmatch.fnmatch(path, pattern) for pattern in exclude):
-        return False
-    if any(fnmatch.fnmatch(path, pattern) for pattern in include):
-        return True
-    suffix = Path(path).suffix.lower()
-    if suffix in UI_EXTENSIONS:
-        return True
-    return suffix in SCRIPT_EXTENSIONS and any(hint in path.lower() for hint in UI_PATH_HINTS)
 
 
 def respond(payload):
@@ -68,7 +53,7 @@ def main():
         path = line[3:].split(" -> ")[-1].strip().strip('"')
         if path.startswith(".ui-audit/") or line[:2].strip() == "D":
             continue
-        if is_ui(path, config.get("include", []), config.get("exclude", [])):
+        if is_ui_path(path, config.get("include", []), config.get("exclude", [])):
             changed.append(path)
     if not changed:
         sys.exit(0)
@@ -84,7 +69,6 @@ def main():
     if not fresh:
         problem = "aucun rapport d'audit plus récent que les modifications"
     else:
-        sys.path.insert(0, str(SCRIPTS_DIR))
         try:
             from verify_report import verify
 

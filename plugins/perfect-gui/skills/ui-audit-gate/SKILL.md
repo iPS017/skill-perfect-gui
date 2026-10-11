@@ -1,6 +1,6 @@
 ---
 name: ui-audit-gate
-description: Barrière qualité UI/UX obligatoire avant de déclarer terminée toute création ou modification d'interface (GUI, UI, UX, page, écran, composant, formulaire, navigation, interaction, style, CSS, design token, police, thème, responsive, traduction affichée, états de chargement ou d'erreur). Ouvre le rendu réel, capture avant/après, inspecte géométrie, superpositions, débordements, accessibilité, clavier, formulaires et responsive, fait une recherche Web tracée de références, corrige ou propose des correctifs, puis rend une décision de validation bornée et prouvée. Use whenever you create, change, restyle, or refactor any user interface, web page, component, form, layout, or design token, before saying the UI work is done, and when the user asks for a UI/UX audit, a design review of a rendered page, or a responsive or accessibility check.
+description: Barrière qualité UI/UX obligatoire avant de déclarer terminée toute création ou modification d'interface (GUI, UI, UX, page, écran, composant, formulaire, navigation, interaction, style, CSS, design token, police, thème, responsive, traduction affichée, états de chargement ou d'erreur). Ouvre le rendu réel, capture avant/après, inspecte géométrie, superpositions, débordements, accessibilité, clavier, formulaires et responsive, fait une recherche Web tracée de références, corrige ou propose des correctifs, puis rend une décision de validation bornée et prouvée. Explore aussi tout un site ou une application Web, génère une scène pour chaque action, option, paramètre et réglage possible, et revoit toutes les scènes avant chaque republication. Use whenever you create, change, restyle, or refactor any user interface, web page, component, form, layout, or design token, before saying the UI work is done; when the user asks for a UI/UX audit, a design review of a rendered page, or a responsive or accessibility check; and when they want to test everything a user can do on a site, generate UI scenarios or regression scenes, or review the UI before publishing, deploying, or pushing.
 ---
 
 # ui-audit-gate
@@ -57,6 +57,17 @@ Détail complet, entrées et sorties : `reference/workflow.md`. Chaque étape pr
 8. **Revérifier.** Relancer les contrôles, **recapturer dans les mêmes conditions** (`--out "$RUN/after-fix-1"`), puis `visual_diff.py` avant/après et sur le rayon d'impact. Expliquer chaque différence. Limite : 3 itérations par défaut, 6 par run. Au-delà, marquer `echoue_non_resolu` avec la cause et l'action requise.
 9. **Rapporter et décider.** Remplir `report.json`, puis lancer `verify_report.py "$RUN" --apply --render`. Le script calcule la décision selon `reference/validation-gate.md`, refuse un rapport incohérent et produit `report.md`. Annoncer la décision dans la conversation (format plus bas).
 
+## Mode exploration : toutes les scènes, revues avant chaque publication
+
+Quand l'utilisateur veut tester tout ce qu'un utilisateur peut faire, avant une mise en production, ou quand le niveau est N3 sur un site entier, suivre `reference/exploration.md` :
+
+1. `explore_site.py` inventorie les pages, boutons, menus, onglets, bascules, champs, listes, cases, formulaires, paramètres d'URL, réglages (thème, langue, tri, filtres), langues et points de rupture, y compris les contrôles révélés par une interaction.
+2. `generate_scenarios.py` en tire `ui-scenes/scenes.json` : une scène par action, option, paramètre, réglage, formulaire (vide, invalide, valide, très long) et environnement (thème sombre, mouvement réduit, zoom, langues). Les identifiants restent stables. `--export-playwright` produit la même suite pour la CI.
+3. `play_scenarios.py --mode baseline` enregistre les références. Ensuite, **avant chaque republication**, `play_scenarios.py` rejoue toutes les scènes sur chaque viewport. Il détecte les bugs graphiques et les incohérences avec l'environnement (bouton mort, défilement bloqué, thème mal adapté, contenu non traduit, police de secours, style incohérent entre pages, erreurs JS) et compare chaque capture à sa référence.
+4. Corriger, accepter les changements visuels voulus (`--accept`), relancer jusqu'au statut `ok`. Le hook de pré-publication refuse `git push`, `npm publish`, `vercel`, etc. tant que la dernière revue n'est pas `ok` sur l'interface exacte qui part.
+
+Les actions destructives ne sont jamais jouées et les requêtes POST, PUT et DELETE sont bloquées, sauf `--allow-mutations` dans un environnement de test. Ce qui n'est pas couvert (combinaisons multiples, téléversement, glisser-déposer, survol) est listé dans le rapport. Pour une application native pure, les scènes sont rejouées de façon assistée, et déclarées comme telles.
+
 ## Niveaux d'audit
 
 | Niveau | Quand | Couverture |
@@ -92,7 +103,7 @@ Les actions externes ou irréversibles (paiement, envoi, suppression, publicatio
 
 ## Barrière mécanique
 
-Le plugin installe un hook `Stop` qui bloque une fois la fin du tour si des fichiers d'interface ont changé dans le dépôt git sans `report.json` cohérent et plus récent. Désactivation : `UI_AUDIT_GATE=off|warn` ou `.ui-audit/config.json`. Créer `.ui-audit/SKIP` (avec une raison) **uniquement** si l'utilisateur a explicitement demandé de ne pas auditer. Ne pas affirmer que le skill est « toujours actif » si le hook n'est pas installé.
+Le plugin installe deux hooks. Le hook `PreToolUse` bloque les commandes de publication sans revue des scènes valide (voir le mode exploration). Le hook `Stop` bloque une fois la fin du tour si des fichiers d'interface ont changé dans le dépôt git sans `report.json` cohérent et plus récent. Désactivation : `UI_AUDIT_GATE=off|warn` ou `.ui-audit/config.json`. Créer `.ui-audit/SKIP` (avec une raison) **uniquement** si l'utilisateur a explicitement demandé de ne pas auditer. Ne pas affirmer que le skill est « toujours actif » si le hook n'est pas installé.
 
 ## Message final dans la conversation
 
@@ -119,3 +130,4 @@ Ne jamais conclure par « tout est parfait ». Ne pas présenter une absence de 
 | `reference/tools-and-degraded-modes.md` | Scripts, alternatives, natif, autorisations | Étape 1 ou en cas d'échec d'outil |
 | `reference/devices.md` | Vérification des appareils et classes d'écran | Pliables et appareils nommés |
 | `reference/report-format.md` | Structure de `report.json`, arborescence des preuves | Étapes 6 et 9 |
+| `reference/exploration.md` | Exploration, suite de scènes, revue avant publication, statuts, barrière de publication | Site entier, « tout tester », avant une publication |

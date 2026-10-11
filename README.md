@@ -39,6 +39,16 @@ Prérequis : Python 3.9 ou plus récent et git. Node n'est pas nécessaire.
 {"gate": {"mode": "warn", "include": ["*.tpl"], "exclude": ["docs/*"]}}
 ```
 
+### Tester tout le site et le revoir avant chaque publication
+
+`/perfect-gui:ui-scenes [url]` explore le site ou l'application Web et inventorie tout ce qu'un utilisateur peut faire : pages, boutons, menus, onglets, champs, listes, formulaires, paramètres d'URL, réglages (thème, langue, tri, filtres). Il génère ensuite une suite de scènes versionnée dans `ui-scenes/scenes.json`, par exemple 257 scènes rejouées sur mobile et bureau.
+
+Avant chaque republication, toutes les scènes sont rejouées et revues. La revue détecte les bugs graphiques (débordements, superpositions, texte rogné, contraste), les incohérences avec l'environnement (bouton mort, défilement bloqué, thème sombre mal adapté, contenu non traduit, police de secours, style différent d'une page à l'autre, erreurs JavaScript) et compare chaque capture à sa référence.
+
+Un hook refuse `git push`, `npm publish`, `vercel`, `netlify deploy`, etc. tant que la dernière revue n'est pas au statut `ok` sur l'interface exacte qui part. Désactivation : `UI_AUDIT_PUBLISH_GATE=off` (ou `ask`).
+
+La même suite peut être exportée en `@playwright/test` (`--export-playwright tests/ui-scenes.spec.ts`) pour tourner en CI. Le détail est dans [exploration.md](plugins/perfect-gui/skills/ui-audit-gate/reference/exploration.md).
+
 Les preuves (captures, mesures, rapports) vont dans `.ui-audit/` à la racine du projet audité. Ce dossier est ajouté au `.gitignore` par défaut.
 
 ## Contenu
@@ -78,4 +88,4 @@ CAHIER_DES_CHARGES.md                  spécification d'origine
 python3 plugins/perfect-gui/tests/run_scenarios.py
 ```
 
-La suite sert une application de test qui contient des défauts injectables. Elle vérifie que les scripts détectent chaque défaut (bouton décalé, texte qui dépasse d'un bouton, superposition qui masque une action, régression responsive, focus piégé, erreur de formulaire mal signalée, traduction trop longue, régression introduite par une correction, perte d'état au redimensionnement, clavier virtuel qui masque une action) sans faux positif sur la version saine. Elle couvre aussi les cas Web indisponible et capture impossible, ainsi que les règles de décision, le journal de recherche, le hook et l'analyse d'impact.
+La suite sert une application de test qui contient des défauts injectables. Elle vérifie que les scripts détectent chaque défaut (bouton décalé, texte qui dépasse d'un bouton, superposition qui masque une action, régression responsive, focus piégé, erreur de formulaire mal signalée, traduction trop longue, régression introduite par une correction, perte d'état au redimensionnement, clavier virtuel qui masque une action) sans faux positif sur la version saine. Elle couvre aussi les cas Web indisponible et capture impossible, les règles de décision, le journal de recherche, les hooks et l'analyse d'impact. Elle explore un site de test multi-pages, en génère les scènes, vérifie que la version saine passe la revue et que la version cassée fait remonter chaque défaut injecté (bouton mort, menu qui déborde, défilement bloqué, thème sombre mal adapté, contenu non traduit, erreur JavaScript, style incohérent, changements visuels).
