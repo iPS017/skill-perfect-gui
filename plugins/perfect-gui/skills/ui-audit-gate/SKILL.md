@@ -1,133 +1,135 @@
 ---
 name: ui-audit-gate
-description: Barrière qualité UI/UX obligatoire avant de déclarer terminée toute création ou modification d'interface (GUI, UI, UX, page, écran, composant, formulaire, navigation, interaction, style, CSS, design token, police, thème, responsive, traduction affichée, états de chargement ou d'erreur). Ouvre le rendu réel, capture avant/après, inspecte géométrie, superpositions, débordements, accessibilité, clavier, formulaires et responsive, fait une recherche Web tracée de références, corrige ou propose des correctifs, puis rend une décision de validation bornée et prouvée. Explore aussi tout un site ou une application Web, génère une scène pour chaque action, option, paramètre et réglage possible, et revoit toutes les scènes avant chaque republication. Use whenever you create, change, restyle, or refactor any user interface, web page, component, form, layout, or design token, before saying the UI work is done; when the user asks for a UI/UX audit, a design review of a rendered page, or a responsive or accessibility check; and when they want to test everything a user can do on a site, generate UI scenarios or regression scenes, or review the UI before publishing, deploying, or pushing.
+description: Mandatory UI/UX quality gate before declaring any interface creation or change finished (GUI, UI, UX, page, screen, component, form, navigation, interaction, style, CSS, design token, font, theme, responsive layout, displayed translation, loading or error states). Opens the real rendered UI, captures before/after screenshots, inspects geometry, overlaps, overflow, accessibility, keyboard, forms and responsive behavior, runs a traced web search for references, fixes or proposes fixes, then issues a bounded, evidence-backed validation decision. Also explores a whole website or web app, generates a scene for every possible action, option, parameter and setting, and reviews every scene before each release. Use whenever you create, change, restyle, or refactor any user interface, web page, component, form, layout, CSS, or design token, before saying the UI work is done; when the user asks for a UI/UX audit, a design review of a rendered page, or a responsive or accessibility check; and when they want to test everything a user can do on a site, generate UI scenarios or regression scenes, or review the UI before publishing, deploying, or pushing.
 ---
 
 # ui-audit-gate
 
-Ce skill s'interpose entre « l'interface est modifiée » et « c'est validé ». Il ne promet pas une interface sans défaut. Il réduit le risque, prouve ce qui a été vérifié et dit honnêtement ce qui ne l'a pas été.
+This skill sits between "the interface has been changed" and "it is validated". It does not promise a flawless interface. It reduces risk, proves what was checked and states honestly what was not.
 
-`SKILL_DIR` désigne le dossier qui contient ce fichier. Les scripts se lancent avec `python3 "$SKILL_DIR/scripts/<script>.py"`. Ils basculent seuls dans le venv `~/.cache/ui-audit-gate/venv` s'il existe. Chaque script affiche du JSON. Le code de sortie 3 signale une capacité manquante, à traduire en contrôles `non_verifie`.
+`SKILL_DIR` is the folder that contains this file. Scripts are run with `python3 "$SKILL_DIR/scripts/<script>.py"`. They switch to the venv `~/.cache/ui-audit-gate/venv` on their own if it exists. Every script prints JSON. Exit code 3 signals a missing capability, to be translated into `not_verified` controls.
 
-## Règles non négociables
+Write reports and messages to the user in the user's language.
 
-1. **Pas de validation sans rendu réel**, sauf mode dégradé déclaré (maquette, sans exécution).
-2. **Un contrôle non exécuté n'est jamais `reussi`.** Statuts possibles : `reussi`, `echoue`, `non_verifie` (avec raison), `non_applicable` (avec raison factuelle).
-3. **Trois vérifications distinctes** : visuelle, comportementale, assistive. Une capture correcte ne prouve ni un parcours ni l'accessibilité.
-4. **Recherche Web réelle à chaque audit**, tracée dans `research/log.json`. Aucune URL, source ou consultation inventée. Une référence citée de mémoire sans revalidation est `memoire_non_revalidee` et ne compte pas.
-5. **Étiqueter chaque constat** : `[EXIGENCE]` (règle explicite applicable), `[HYPOTHÈSE]` (à vérifier), `[PRÉFÉRENCE]` (goût, jamais bloquant seul).
-6. **Émulation ≠ appareil réel.** Un viewport émulé n'est pas un test du téléphone. Aucune dimension d'appareil inventée (voir `reference/devices.md`).
-7. **Ne pas dire « terminé », « validé » ou « prêt »** tant que l'étape 9 n'a pas produit une décision. Dire plutôt « implémenté, audit en cours ».
-8. **Confidentialité** : ni capture, ni donnée, ni nom de produit interne dans les requêtes de recherche. Rien n'est envoyé à un service tiers sans autorisation.
-9. **Corriger la cause** (token, composant partagé) plutôt que masquer le symptôme. Un `overflow:hidden` ou un `z-index:9999` posé sans analyse est un palliatif à déclarer comme tel.
-10. **Ne jamais s'accorder une exception.** Seul l'utilisateur accepte un défaut majeur résiduel. Un défaut critique ne peut pas être couvert par une exception.
+## Non-negotiable rules
 
-## Quand l'utiliser
+1. **No validation without a real render**, except in a declared degraded mode (mockup, no execution).
+2. **A control that was not run is never `passed`.** Possible statuses: `passed`, `failed`, `not_verified` (with a reason), `not_applicable` (with a factual reason).
+3. **Three distinct checks**: visual, behavioral, assistive. A correct screenshot proves neither a user flow nor accessibility.
+4. **Real web research on every audit**, traced in `research/log.json`. No invented URL, source or visit. A reference cited from memory without revalidation is `memory_not_revalidated` and does not count.
+5. **Label every finding**: `[REQUIREMENT]` (explicit applicable rule), `[HYPOTHESIS]` (to be verified), `[PREFERENCE]` (taste, never blocking on its own).
+6. **Emulation is not a real device.** An emulated viewport is not a phone test. No invented device dimensions (see `reference/devices.md`).
+7. **Do not say "done", "validated" or "ready"** until step 9 has produced a decision. Say "implemented, audit in progress" instead.
+8. **Confidentiality**: no screenshot, data or internal product name in search queries. Nothing is sent to a third-party service without permission.
+9. **Fix the cause** (token, shared component) rather than hiding the symptom. An `overflow:hidden` or a `z-index:9999` added without analysis is a workaround and must be declared as one.
+10. **Never grant yourself an exception.** Only the user can accept a residual major finding. A critical finding cannot be covered by an exception.
 
-Déclencheurs : nouvelle interface ; changement de style, contenu, structure, composant partagé, comportement, navigation, états, données affichées ou responsive ; **changement indirect** (police, token, CSS global, reset, mise à jour d'une bibliothèque UI, configuration de build CSS, fichiers de traduction).
+## When to use it
 
-Pas pour : du code purement backend sans effet affiché, ou une question théorique sans interface à examiner. Dans ce dernier cas, proposer l'audit.
+Triggers: new interface; change of style, content, structure, shared component, behavior, navigation, states, displayed data or responsive layout; **indirect change** (font, token, global CSS, reset, UI library upgrade, CSS build configuration, translation files).
 
-## Démarrage
+Not for: purely backend code with no displayed effect, or a theoretical question with no interface to examine. In the latter case, offer the audit.
+
+## Getting started
 
 ```bash
-python3 "$SKILL_DIR/scripts/init_run.py" --slug checkout-footer        # crée .ui-audit/RUN-.../
-python3 "$SKILL_DIR/scripts/probe.py" --out "$RUN/capabilities.json"   # capacités réelles
-python3 "$SKILL_DIR/scripts/impact_scan.py" --out "$RUN/impact.json"   # périmètre et niveau
+python3 "$SKILL_DIR/scripts/init_run.py" --slug checkout-footer        # creates .ui-audit/RUN-.../
+python3 "$SKILL_DIR/scripts/probe.py" --out "$RUN/capabilities.json"   # actual capabilities
+python3 "$SKILL_DIR/scripts/impact_scan.py" --out "$RUN/impact.json"   # scope and level
 ```
 
-Si `probe.py` signale l'absence de Playwright, proposer `bash "$SKILL_DIR/scripts/setup.sh"` avec la commande exacte et demander l'accord avant d'installer. Sans accord, passer en mode dégradé (tableau plus bas).
+If `probe.py` reports that Playwright is missing, offer `bash "$SKILL_DIR/scripts/setup.sh"` with the exact command and ask for consent before installing. Without consent, switch to a degraded mode (table below).
 
-## Workflow obligatoire (9 étapes)
+## Mandatory workflow (9 steps)
 
-Détail complet, entrées et sorties : `reference/workflow.md`. Chaque étape produit une preuve ou un statut `non_verifie` motivé.
+Full details, inputs and outputs: `reference/workflow.md`. Each step produces evidence or a justified `not_verified` status.
 
-1. **Cadrer.** Reformuler l'objectif et les critères d'acceptation dans `scope.md`. Lancer `impact_scan.py`. Lister les hypothèses. Fixer le niveau (N1, N2 ou N3, voir ci-dessous). Exploiter dépôt et conversation avant de demander quoi que ce soit. Poser en un seul lot les seules questions bloquantes.
-2. **Capturer l'avant.** Si l'agent n'a pas encore modifié le code, capturer maintenant. Sinon, reconstruire l'état antérieur dans un worktree isolé (`git worktree add`) et le lancer. Pour une création, noter `baseline=first-render`. Si rien n'est possible, noter `baseline=indisponible` avec la raison.
-   `capture.py --url URL --viewports P0 --out "$RUN/before" --name accueil --state normal`
-3. **Rechercher.** Protocole : `reference/research-protocol.md`. Utiliser l'outil de recherche Web de l'hôte, puis consigner chaque requête et chaque page ouverte avec `research_log.py`. Retenir 2 à 5 références (8 en N3), remplir le tableau de comparaison, puis s'arrêter selon la règle d'arrêt.
-4. **Exécuter et capturer l'après.** Lancer l'application réelle (scripts du projet), attendre la stabilisation et parcourir les états et configurations choisis (`reference/configurations.md`). Réaliser les interactions des parcours (`--actions`).
-5. **Inspecter et croiser.**
-   - `inspect_page.py` : débordement horizontal, texte rogné, superposition (`--scan-scroll`), taille des cibles, alignement des éléments frères, contraste, labels, noms accessibles, erreurs de formulaire, images, titres, langue, axe-core si disponible, console.
-   - `keyboard_walk.py` : ordre de tabulation, pièges de focus, focus visible, focus masqué, éléments inatteignables.
-   - `resize_probe.py --mode state` (perte d'état au redimensionnement ou au pliage) et `--mode keyboard` (clavier virtuel émulé).
-   - Revue visuelle des captures annotées. Les contrôles sans script sont listés dans `reference/controls.md`.
-6. **Consigner et prioriser.** Une fiche par défaut (schéma `schemas/finding.schema.json`), reproduite deux fois, avec l'observé séparé de l'interprété. Sévérité, priorité, confiance et effort sont quatre champs distincts (`reference/severity-and-fixes.md`). Regrouper les défauts par cause commune.
-7. **Corriger ou proposer.** Dans le périmètre autorisé, corriger la cause et propager. Hors périmètre, fournir un correctif concret. Proposer 2 ou 3 variantes **seulement** s'il existe un vrai arbitrage, et en recommander une.
-8. **Revérifier.** Relancer les contrôles, **recapturer dans les mêmes conditions** (`--out "$RUN/after-fix-1"`), puis `visual_diff.py` avant/après et sur le rayon d'impact. Expliquer chaque différence. Limite : 3 itérations par défaut, 6 par run. Au-delà, marquer `echoue_non_resolu` avec la cause et l'action requise.
-9. **Rapporter et décider.** Remplir `report.json`, puis lancer `verify_report.py "$RUN" --apply --render`. Le script calcule la décision selon `reference/validation-gate.md`, refuse un rapport incohérent et produit `report.md`. Annoncer la décision dans la conversation (format plus bas).
+1. **Frame.** Restate the goal and the acceptance criteria in `scope.md`. Run `impact_scan.py`. List the assumptions. Set the level (N1, N2 or N3, see below). Use the repository and the conversation before asking anything. Ask only the blocking questions, all in one batch.
+2. **Capture the before state.** If the agent has not changed the code yet, capture now. Otherwise, rebuild the previous state in an isolated worktree (`git worktree add`) and run it. For a new interface, record `baseline=first-render`. If nothing is possible, record `baseline=unavailable` with the reason.
+   `capture.py --url URL --viewports P0 --out "$RUN/before" --name home --state normal`
+3. **Research.** Protocol: `reference/research-protocol.md`. Use the host's web search tool, then log every query and every opened page with `research_log.py`. Keep 2 to 5 references (8 at N3), fill in the comparison table, then stop according to the stopping rule.
+4. **Run and capture the after state.** Start the real application (project scripts), wait for it to settle and go through the chosen states and configurations (`reference/configurations.md`). Perform the interactions of the user flows (`--actions`).
+5. **Inspect and cross-check.**
+   - `inspect_page.py`: horizontal overflow, clipped text, overlap (`--scan-scroll`), target size, alignment of sibling elements, contrast, labels, accessible names, form errors, images, headings, language, axe-core if available, console.
+   - `keyboard_walk.py`: tab order, focus traps, visible focus, obscured focus, unreachable elements.
+   - `resize_probe.py --mode state` (state lost on resize or fold) and `--mode keyboard` (emulated virtual keyboard).
+   - Visual review of the annotated screenshots. Controls without a script are listed in `reference/controls.md`.
+6. **Record and prioritize.** One record per finding (schema `schemas/finding.schema.json`), reproduced twice, with the observed facts kept separate from the interpretation. Severity, priority, confidence and effort are four distinct fields (`reference/severity-and-fixes.md`). Group findings by common cause.
+7. **Fix or propose.** Within the authorized scope, fix the cause and propagate it. Outside the scope, provide a concrete fix. Offer 2 or 3 variants **only** when there is a real trade-off, and recommend one.
+8. **Re-verify.** Rerun the controls, **re-capture under the same conditions** (`--out "$RUN/after-fix-1"`), then run `visual_diff.py` on before/after and on the impact radius. Explain every difference. Limit: 3 iterations by default, 6 per run. Beyond that, mark `failed_unresolved` with the cause and the required action.
+9. **Report and decide.** Fill in `report.json`, then run `verify_report.py "$RUN" --apply --render`. The script computes the decision according to `reference/validation-gate.md`, rejects an inconsistent report and produces `report.md`. Announce the decision in the conversation (format below).
 
-## Mode exploration : toutes les scènes, revues avant chaque publication
+## Exploration mode: every scene, reviewed before each release
 
-Quand l'utilisateur veut tester tout ce qu'un utilisateur peut faire, avant une mise en production, ou quand le niveau est N3 sur un site entier, suivre `reference/exploration.md` :
+When the user wants to test everything a user can do, before a production release, or when the level is N3 on a whole site, follow these steps (details in `reference/exploration.md`):
 
-1. `explore_site.py` inventorie les pages, boutons, menus, onglets, bascules, champs, listes, cases, formulaires, paramètres d'URL, réglages (thème, langue, tri, filtres), langues et points de rupture, y compris les contrôles révélés par une interaction.
-2. `generate_scenarios.py` en tire `ui-scenes/scenes.json` : une scène par action, option, paramètre, réglage, formulaire (vide, invalide, valide, très long) et environnement (thème sombre, mouvement réduit, zoom, langues). Les identifiants restent stables. `--export-playwright` produit la même suite pour la CI.
-3. `play_scenarios.py --mode baseline` enregistre les références. Ensuite, **avant chaque republication**, `play_scenarios.py` rejoue toutes les scènes sur chaque viewport. Il détecte les bugs graphiques et les incohérences avec l'environnement (bouton mort, défilement bloqué, thème mal adapté, contenu non traduit, police de secours, style incohérent entre pages, erreurs JS) et compare chaque capture à sa référence.
-4. Corriger, accepter les changements visuels voulus (`--accept`), relancer jusqu'au statut `ok`. Le hook de pré-publication refuse `git push`, `npm publish`, `vercel`, etc. tant que la dernière revue n'est pas `ok` sur l'interface exacte qui part.
+1. `explore_site.py` inventories pages, buttons, menus, tabs, toggles, fields, selects, checkboxes, forms, URL parameters, settings (theme, language, sort, filters), languages and breakpoints, including controls revealed by an interaction.
+2. `generate_scenarios.py` derives `ui-scenes/scenes.json` from it: one scene per action, option, parameter, setting, form (empty, invalid, valid, very long) and environment (dark theme, reduced motion, zoom, languages). IDs stay stable. `--export-playwright` produces the same suite for CI.
+3. `play_scenarios.py --mode baseline` records the baselines. Then, **before each release**, `play_scenarios.py` replays every scene on every viewport. It detects visual bugs and inconsistencies with the environment (dead button, locked scrolling, theme not adapted, untranslated content, fallback font, style inconsistent across pages, JS errors) and compares each screenshot with its baseline.
+4. Fix, accept intended visual changes (`--accept`), rerun until the status is `ok`. The pre-publish hook refuses `git push`, `npm publish`, `vercel`, etc. as long as the last review is not `ok` on the exact interface being shipped.
 
-Les actions destructives ne sont jamais jouées et les requêtes POST, PUT et DELETE sont bloquées, sauf `--allow-mutations` dans un environnement de test. Ce qui n'est pas couvert (combinaisons multiples, téléversement, glisser-déposer, survol) est listé dans le rapport. Pour une application native pure, les scènes sont rejouées de façon assistée, et déclarées comme telles.
+Destructive actions are never played and POST, PUT and DELETE requests are blocked, unless `--allow-mutations` is used in a test environment. What is not covered (multiple combinations, file upload, drag and drop, hover) is listed in the report. For a pure native application, scenes are replayed in assisted mode and declared as such.
 
-## Niveaux d'audit
+## Audit levels
 
-| Niveau | Quand | Couverture |
+| Level | When | Coverage |
 |---|---|---|
-| N1 | Toujours | Contrôles fondamentaux (`config/levels.json`) sur le périmètre, viewports P0, états touchés, recherche ciblée |
-| N2 | Composant partagé, comportement, navigation, formulaire, ou défaut trouvé en N1 | N1, plus consommateurs et écrans voisins, P0+P1, clavier complet du parcours |
-| N3 | Token ou style global, dépendance UI, refonte, parcours critique (paiement, authentification, données personnelles, action destructive) | N2, plus P2, préférences utilisateur, localisation, réseau dégradé, pliables, échantillonnage large |
+| N1 | Always | Fundamental controls (`config/levels.json`) on the scope, P0 viewports, affected states, targeted research |
+| N2 | Shared component, behavior, navigation, form, or a finding at N1 | N1, plus consumers and neighboring screens, P0+P1, full keyboard pass on the user flow |
+| N3 | Token or global style, UI dependency, redesign, critical flow (payment, authentication, personal data, destructive action) | N2, plus P2, user preferences, localization, degraded network, foldables, broad sampling |
 
-`impact_scan.py` propose un niveau. Toute baisse est déclarée dans `report.json` (`couverture_reduite`, `justification_reduction`).
+`impact_scan.py` suggests a level. Any downgrade is declared in `report.json` (`reduced_coverage`, `reduction_justification`).
 
-## Configurations minimales
+## Minimum configurations
 
-- Viewports en pixels CSS : `config/viewports.json` (P0 : 320×640, 390×844, 1366×768, 1440×900). Ajouter les points de rupture réels du projet à `b-1`, `b` et `b+1` (`--viewports 767x900,768x900,769x900`).
-- Contenus : `config/fixtures/` (long, vide, inattendu) et pseudo-localisation (`inspect_page.py --pseudo`, `pseudo_locale.py`).
-- Préférences : `--theme dark`, `--reduced-motion reduce`, `--forced-colors`, `--zoom 2`, `--text-spacing`.
-- Consigner dans `coverage.json` les combinaisons exécutées **et** celles exclues, avec la raison et le risque. Ne jamais écrire « testé sur tous les appareils ».
+- Viewports in CSS pixels: `config/viewports.json` (P0: 320x640, 390x844, 1366x768, 1440x900). Add the project's real breakpoints at `b-1`, `b` and `b+1` (`--viewports 767x900,768x900,769x900`).
+- Content: `config/fixtures/` (long, empty, unexpected) and pseudo-localization (`inspect_page.py --pseudo`, `pseudo_locale.py`).
+- Preferences: `--theme dark`, `--reduced-motion reduce`, `--forced-colors`, `--zoom 2`, `--text-spacing`.
+- Record in `coverage.json` the combinations executed **and** those excluded, with the reason and the risk. Never write "tested on all devices".
 
-## Modes dégradés
+## Degraded modes
 
-| Situation | Conduite | Plafond de décision |
+| Situation | What to do | Decision ceiling |
 |---|---|---|
-| Pas de Playwright ni de navigateur | Proposer `setup.sh`. Sinon captures fournies par l'utilisateur et lecture du code. | VALIDATION_LIMITEE (sans_execution) |
-| Capture impossible | Diagnostiquer, réessayer avec un autre moteur (`--engine`, `--browser-path`, `--headed`), puis marquer tous les contrôles visuels `non_verifie` | NON_VALIDEE si le changement est visuel (B5) |
-| Web indisponible | `research_log.py unavailable --cause ...`, poursuivre les contrôles locaux, étiqueter les recommandations `[HYPOTHÈSE, non sourcée en ligne]` | VALIDEE_PERIMETRE_TESTE au mieux |
-| Maquette seule | Audit visuel statique, interactions `non_verifie` | VALIDATION_LIMITEE (maquette) |
-| Natif ou hybride | `reference/tools-and-degraded-modes.md` | Selon l'outillage |
-| Pas d'appareil réel | Émulation déclarée, contrôles matériels `non_verifie` avec `raison_type: appareil_reel` | Pas de plafond, mais listé |
-| Pas de lecteur d'écran | ACC-11 `non_verifie` avec `raison_type: humain` | Listé en vérification humaine |
+| No Playwright and no browser | Offer `setup.sh`. Otherwise use screenshots provided by the user and read the code. | LIMITED_VALIDATION (no_execution) |
+| Capture impossible | Diagnose, retry with another engine (`--engine`, `--browser-path`, `--headed`), then mark every visual control `not_verified` | NOT_VALIDATED if the change is visual (B5) |
+| Web unavailable | `research_log.py unavailable --cause ...`, continue the local controls, label recommendations `[HYPOTHESIS, not sourced online]` | VALIDATED_TESTED_SCOPE at best |
+| Mockup only | Static visual audit, interactions `not_verified` | LIMITED_VALIDATION (mockup) |
+| Native or hybrid | `reference/tools-and-degraded-modes.md` | Depends on tooling |
+| No real device | Declared emulation, hardware controls `not_verified` with `reason_type: real_device` | No ceiling, but listed |
+| No screen reader | ACC-11 `not_verified` with `reason_type: human` | Listed as a human check |
 
-## Sécurité des parcours
+## User flow safety
 
-Les actions externes ou irréversibles (paiement, envoi, suppression, publication) se testent avec des données fictives ou un environnement de test. Sinon, s'arrêter avant l'action et demander confirmation. Les secrets ne vont jamais dans les rapports. Anonymiser toute capture qui sort de la machine.
+External or irreversible actions (payment, sending, deletion, publishing) are tested with fake data or a test environment. Otherwise, stop before the action and ask for confirmation. Secrets never go into reports. Anonymize any screenshot that leaves the machine.
 
-## Barrière mécanique
+## Mechanical gate
 
-Le plugin installe deux hooks. Le hook `PreToolUse` bloque les commandes de publication sans revue des scènes valide (voir le mode exploration). Le hook `Stop` bloque une fois la fin du tour si des fichiers d'interface ont changé dans le dépôt git sans `report.json` cohérent et plus récent. Désactivation : `UI_AUDIT_GATE=off|warn` ou `.ui-audit/config.json`. Créer `.ui-audit/SKIP` (avec une raison) **uniquement** si l'utilisateur a explicitement demandé de ne pas auditer. Ne pas affirmer que le skill est « toujours actif » si le hook n'est pas installé.
+The plugin installs two hooks. The `PreToolUse` hook blocks publish commands without a valid scene review (see exploration mode). The `Stop` hook blocks the end of the turn once if interface files changed in the git repository without a consistent, more recent `report.json`. Disabling: `UI_AUDIT_GATE=off|warn` or `.ui-audit/config.json`. Create `.ui-audit/SKIP` (with a reason) **only** if the user explicitly asked not to audit. Do not claim the skill is "always active" if the hook is not installed.
 
-## Message final dans la conversation
+## Final message in the conversation
 
 ```
-Audit UI : <DÉCISION> (RUN-...)
-Vérifié : <niveau, configurations, contrôles exécutés>
-Défauts : <n critiques / n majeurs / ...> ; corrigés : <n> ; restants : <liste courte>
-Non vérifié : <ex. lecteur d'écran réel, pliable physique, clavier natif>
-Rapport : .ui-audit/RUN-.../report.md
+UI audit: <DECISION> (RUN-...)
+Checked: <level, configurations, controls run>
+Findings: <n critical / n major / ...>; fixed: <n>; remaining: <short list>
+Not verified: <e.g. real screen reader, physical foldable, native keyboard>
+Report: .ui-audit/RUN-.../report.md
 ```
 
-Ne jamais conclure par « tout est parfait ». Ne pas présenter une absence de défaut détecté comme une absence de défaut.
+Never conclude with "everything is perfect". Do not present the absence of detected findings as the absence of defects.
 
-## Fichiers de référence
+## Reference files
 
-| Fichier | Contenu | Quand le lire |
+| File | Content | When to read it |
 |---|---|---|
-| `reference/workflow.md` | Étapes détaillées, déterminisme, boucle | Toujours, au premier audit d'une session |
-| `reference/controls.md` | Matrice complète des contrôles (identifiants, méthode, attendu, sévérité) | Étape 5 |
-| `reference/configurations.md` | États, viewports, pliables, clavier virtuel, échantillonnage | Étapes 4 et 5 |
-| `reference/research-protocol.md` | Requêtes, hiérarchie des sources, fiche de référence, arrêt | Étape 3 |
-| `reference/severity-and-fixes.md` | Sévérité, priorité, fiche de correction, variantes | Étapes 6 et 7 |
-| `reference/validation-gate.md` | Statuts, conditions bloquantes, décisions, exceptions | Étape 9 |
-| `reference/tools-and-degraded-modes.md` | Scripts, alternatives, natif, autorisations | Étape 1 ou en cas d'échec d'outil |
-| `reference/devices.md` | Vérification des appareils et classes d'écran | Pliables et appareils nommés |
-| `reference/report-format.md` | Structure de `report.json`, arborescence des preuves | Étapes 6 et 9 |
-| `reference/exploration.md` | Exploration, suite de scènes, revue avant publication, statuts, barrière de publication | Site entier, « tout tester », avant une publication |
+| `reference/workflow.md` | Detailed steps, determinism, loop | Always, on the first audit of a session |
+| `reference/controls.md` | Full control matrix (IDs, method, expected result, severity) | Step 5 |
+| `reference/configurations.md` | States, viewports, foldables, virtual keyboard, sampling | Steps 4 and 5 |
+| `reference/research-protocol.md` | Queries, source hierarchy, reference record, stopping | Step 3 |
+| `reference/severity-and-fixes.md` | Severity, priority, fix record, variants | Steps 6 and 7 |
+| `reference/validation-gate.md` | Statuses, blocking conditions, decisions, exceptions | Step 9 |
+| `reference/tools-and-degraded-modes.md` | Scripts, alternatives, native, permissions | Step 1 or when a tool fails |
+| `reference/devices.md` | Checking devices and screen classes | Foldables and named devices |
+| `reference/report-format.md` | Structure of `report.json`, evidence tree | Steps 6 and 9 |
+| `reference/exploration.md` | Exploration, scene suite, pre-release review, statuses, publish gate | Whole site, "test everything", before a release |

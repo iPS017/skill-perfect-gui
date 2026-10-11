@@ -1,5 +1,5 @@
 {
-  "fondamentaux": [
+  "fundamental": [
     "GEO-01", "GEO-02", "GEO-03", "GEO-05",
     "STK-01", "STK-02",
     "TXT-01",
@@ -12,16 +12,16 @@
     "ROB-01",
     "DS-01"
   ],
-  "niveaux": {
-    "N1": {"viewports": "P0", "description": "Périmètre modifié, contrôles fondamentaux, états touchés, recherche ciblée"},
-    "N2": {"viewports": "P0,P1", "description": "N1 + consommateurs, écrans voisins, clavier complet du parcours"},
-    "N3": {"viewports": "P0,P1,P2", "description": "N2 + préférences, localisation, réseau dégradé, pliables, échantillonnage large"}
+  "levels": {
+    "N1": {"viewports": "P0", "description": "Changed scope, fundamental controls, affected states, targeted research"},
+    "N2": {"viewports": "P0,P1", "description": "N1 + consumers, neighboring screens, full keyboard pass of the flow"},
+    "N3": {"viewports": "P0,P1,P2", "description": "N2 + preferences, localization, degraded network, foldables, broad sampling"}
   },
-  "regles": {
-    "N2_si_types": ["composant-partage", "logique-ui", "navigation", "formulaire"],
-    "N3_si_types": ["token", "style-global", "dependance", "config-build"],
-    "N3_si_chemins": ["checkout", "payment", "paiement", "login", "auth", "signup", "inscription", "account", "compte", "delete", "suppression"]
+  "rules": {
+    "N2_if_types": ["shared-component", "ui-logic", "navigation", "form"],
+    "N3_if_types": ["token", "global-style", "dependency", "build-config"],
+    "N3_if_paths": ["checkout", "payment", "paiement", "login", "auth", "signup", "inscription", "account", "compte", "delete", "suppression"]
   },
-  "limites_boucle": {"par_defaut": 3, "par_run": 6},
+  "loop_limits": {"per_finding": 3, "per_run": 6},
   "max_references": {"N1": 5, "N2": 5, "N3": 8}
 }

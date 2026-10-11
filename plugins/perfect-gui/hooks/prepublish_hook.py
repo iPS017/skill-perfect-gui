@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Hook PreToolUse (Bash) de ui-audit-gate : avant une commande de publication (git push, npm publish,
-vercel, netlify deploy, firebase deploy, etc.), exige une revue complète et réussie de la suite de
-scènes, faite sur l'interface exacte qui va partir.
+"""ui-audit-gate PreToolUse (Bash) hook: before a publish command (git push, npm publish,
+vercel, netlify deploy, firebase deploy, etc.), require a complete and successful review of the scene
+suite, run on the exact interface that is about to ship.
 
-Actif seulement si le projet a une suite (ui-scenes/scenes.json, ou "scenes" dans .ui-audit/config.json).
-Réglages : UI_AUDIT_PUBLISH_GATE=block|ask|off, ou .ui-audit/config.json
+Active only if the project has a suite (ui-scenes/scenes.json, or "scenes" in .ui-audit/config.json).
+Settings: UI_AUDIT_PUBLISH_GATE=block|ask|off, or .ui-audit/config.json
 {"publish_gate": {"mode": "block", "suite": "ui-scenes", "patterns": ["make release"]}}.
 """
 import hashlib
@@ -70,32 +70,32 @@ def main():
             review = None
     problems = []
     if not review:
-        problems.append("aucune revue complète des scènes n'a été faite")
+        problems.append("no complete scene review has been run")
     else:
         if review.get("mode") != "review":
-            problems.append("la dernière exécution était une prise de référence, pas une revue")
-        if review.get("empreinte_scenes") != hashlib.sha1(scenes_file.read_bytes()).hexdigest():
-            problems.append("scenes.json a changé depuis la dernière revue")
+            problems.append("the last run was a baseline capture, not a review")
+        if review.get("scenes_fingerprint") != hashlib.sha1(scenes_file.read_bytes()).hexdigest():
+            problems.append("scenes.json changed since the last review")
         current = ui_fingerprint(root, config.get("include", []), config.get("exclude", []))
-        if current and review.get("empreinte_ui") != current:
-            problems.append("des fichiers d'interface ont changé depuis la dernière revue")
-        status = review.get("statut")
+        if current and review.get("ui_fingerprint") != current:
+            problems.append("interface files changed since the last review")
+        status = review.get("status")
         if status != "ok":
             details = {
-                "echec": f"{review.get('compteurs', {}).get('bloquantes')} anomalie(s) bloquante(s)",
-                "a-revoir": f"{review.get('compteurs', {}).get('changements_visuels')} changement(s) visuel(s) non accepté(s)",
-                "incomplet": "scènes non exécutées ou en erreur",
+                "failed": f"{review.get('counts', {}).get('blocking')} blocking anomaly(ies)",
+                "needs-review": f"{review.get('counts', {}).get('visual_changes')} unaccepted visual change(s)",
+                "incomplete": "scenes not run or with errors",
             }.get(status, status)
-            problems.append(f"dernière revue au statut « {status} » ({details})")
+            problems.append(f"last review has status \"{status}\" ({details})")
     if not problems:
         sys.exit(0)
     total = len(json.loads(scenes_file.read_text(encoding="utf-8")).get("scenes", []))
     reason = (
-        f"ui-audit-gate : publication bloquée, la revue des {total} scènes UI n'est pas valide ({'; '.join(problems)}). "
-        f"Lance l'application, puis : python3 \"{SCRIPTS_DIR / 'play_scenarios.py'}\" --suite \"{suite}\" --url <URL>. "
-        "Corrige les anomalies bloquantes ; accepte les changements visuels voulus avec --accept. "
-        "Une anomalie connue ne s'accepte (--accept-anomaly) que sur décision explicite de l'utilisateur. "
-        "Désactivation : UI_AUDIT_PUBLISH_GATE=off."
+        f"ui-audit-gate: publish blocked, the review of the {total} UI scenes is not valid ({'; '.join(problems)}). "
+        f"Start the application, then run: python3 \"{SCRIPTS_DIR / 'play_scenarios.py'}\" --suite \"{suite}\" --url <URL>. "
+        "Fix the blocking anomalies; accept intended visual changes with --accept. "
+        "A known anomaly may be accepted (--accept-anomaly) only on an explicit user decision. "
+        "To disable: UI_AUDIT_PUBLISH_GATE=off."
     )
     respond("ask" if mode == "ask" else "deny", reason)
 

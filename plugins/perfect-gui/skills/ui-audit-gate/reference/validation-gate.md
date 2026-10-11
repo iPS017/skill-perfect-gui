@@ -1,69 +1,69 @@
-# Barrière de validation
+# Validation gate
 
-`verify_report.py` applique exactement ces règles. En cas de doute, c'est le script qui fait foi, et un écart entre le script et ce document est un bug à signaler.
+`verify_report.py` applies exactly these rules. When in doubt, the script is authoritative, and any discrepancy between the script and this document is a bug to report.
 
-## Statuts de contrôle (`controles[].statut`)
+## Control statuses (`controls[].status`)
 
-| Statut | Condition | Champs obligatoires |
+| Status | Condition | Required fields |
 |---|---|---|
-| `reussi` | Méthode entièrement exécutée, résultat conforme, preuve conservée | `preuves` (fichiers existants) |
-| `echoue` | Exécuté, non conforme | Au moins une fiche de défaut qui référence le contrôle |
-| `non_verifie` | Non exécuté ou non concluant | `raison`, `raison_type` |
-| `non_applicable` | Le contexte ne s'y prête pas | `raison` factuelle (« pas de formulaire dans le périmètre ») |
+| `passed` | Method fully executed, compliant result, evidence kept | `evidence` (existing files) |
+| `failed` | Executed, not compliant | At least one finding record that references the control |
+| `not_verified` | Not executed or inconclusive | `reason`, `reason_type` |
+| `not_applicable` | The context does not lend itself to it | Factual `reason` ("no form in the scope") |
 
-`raison_type` prend l'une de ces valeurs :
-- `technique` : outil absent, capture impossible ;
-- `humain` : lecteur d'écran réel, jugement de marque, test utilisateur ;
-- `appareil_reel` : charnière, clavier natif, capteurs ;
-- `hors_perimetre` : réduction de couverture déclarée ;
-- `autre`.
+`reason_type` takes one of these values:
+- `technical` for a missing tool or an impossible capture;
+- `human` for a real screen reader, a brand judgment or a user test;
+- `real_device` for a hinge, a native keyboard or sensors;
+- `out_of_scope` for a declared coverage reduction;
+- `other`.
 
-`non_applicable` ne sert pas à masquer un `non_verifie`. « Pas eu le temps » n'est pas une raison de non-applicabilité.
+`not_applicable` is not used to hide a `not_verified`. "No time" is not a reason for non-applicability.
 
-## Conditions bloquantes
+## Blocking conditions
 
 | Code | Condition |
 |---|---|
-| B1 | Un défaut `critique` est ouvert (`ouvert`, `echoue_non_resolu`, ou `accepte_exception` : un critique ne peut pas être couvert par une exception) |
-| B2 | Un défaut `majeure` de nature `EXIGENCE` est ouvert sans exception valide |
-| B3 | Un contrôle fondamental (`config/levels.json`) est absent du rapport, ou `non_verifie` avec un `raison_type` autre que `technique`, `humain` ou `appareil_reel` |
-| B4 | PAR-01 (parcours principal) n'est pas `reussi`, en mode complet. `non_applicable` est toléré avec une raison et produit un avertissement. |
-| B5 | Changement visuel sans paire avant/après dont la capture « après » existe. Si des corrections ont été appliquées, il faut au moins une capture « après » prise dans un dossier `after-fix-*`. |
-| B6 | Une régression introduite par une correction (`introduit_par_correction: true`) est ouverte |
+| B1 | A `critical` finding is open (`open`, `failed_unresolved`, or `accepted_exception`, since a critical finding cannot be covered by an exception) |
+| B2 | A `major` finding of nature `REQUIREMENT` is open without a valid exception |
+| B3 | A fundamental control (`config/levels.json`) is missing from the report, or is `not_verified` with a `reason_type` other than `technical`, `human` or `real_device` |
+| B4 | PAR-01 (main user flow) is not `passed`, in full mode. `not_applicable` is tolerated with a reason and produces a warning. |
+| B5 | Visual change without a before/after pair whose "after" screenshot exists. If fixes were applied, at least one "after" screenshot must have been taken in an `after-fix-*` folder. |
+| B6 | A regression introduced by a fix (`introduced_by_fix: true`) is open |
 
-## Décision
+## Decision
 
 ```text
-si B1 ou B3 ou B4 ou B5 ou B6, ou B2 non couvert par une exception :
-    NON_VALIDEE
-sinon si mode in {maquette, sans_execution} :
-    VALIDATION_LIMITEE
-sinon si un défaut majeur EXIGENCE est couvert par une exception :
-    VALIDEE_AVEC_EXCEPTIONS
-sinon si recherche.statut != "realisee"
-     ou un contrôle requis est non_verifie avec raison_type in {technique, hors_perimetre, autre}
-     ou couverture_reduite :
-    VALIDEE_PERIMETRE_TESTE
-sinon :
-    VALIDEE_PROTOCOLE_COMPLET
+if B1 or B3 or B4 or B5 or B6, or B2 not covered by an exception:
+    NOT_VALIDATED
+else if mode in {mockup, no_execution}:
+    LIMITED_VALIDATION
+else if a major REQUIREMENT finding is covered by an exception:
+    VALIDATED_WITH_EXCEPTIONS
+else if research.status != "done"
+     or a required control is not_verified with reason_type in {technical, out_of_scope, other}
+     or reduced_coverage:
+    VALIDATED_TESTED_SCOPE
+else:
+    VALIDATED_FULL_PROTOCOL
 ```
 
-Les contrôles `non_verifie` de type `humain` ou `appareil_reel` ne font pas baisser la décision. Ils sont listés dans `verifications_humaines` et dans le message final.
+`not_verified` controls of type `human` or `real_device` do not lower the decision. They are listed in `human_checks` and in the final message.
 
-`VALIDEE_PROTOCOLE_COMPLET` signifie que le protocole a été entièrement suivi au niveau requis. Cela ne signifie pas qu'aucun défaut n'existe. Le rapport le rappelle.
+`VALIDATED_FULL_PROTOCOL` means the protocol was fully followed at the required level. It does not mean that no defect exists. The report says so.
 
-## Cohérence vérifiée par le script
+## Consistency checked by the script
 
-- Chaque `reussi` a des preuves dont les fichiers existent (chemins relatifs au run ou absolus).
-- Chaque `echoue` est référencé par une fiche de défaut.
-- Chaque défaut `corrige` a un `retest.statut = "reussi"` avec des preuves existantes.
-- Chaque référence `consultee` ou `revalidee` a son URL dans `research/log.json`. Une URL absente est traitée comme fabriquée et rend le rapport invalide.
-- `recherche.statut = "realisee"` exige au moins une référence valide. `non_realisee` exige une cause.
-- Une exception exige `acceptee_par`, `date` et une demande explicite de l'utilisateur (`citation`). L'agent ne s'en accorde jamais.
-- La décision écrite doit être égale à la décision calculée. `--apply` écrit la décision calculée seulement si tout le reste est cohérent.
+- Each `passed` has evidence whose files exist (paths relative to the run or absolute).
+- Each `failed` is referenced by a finding record.
+- Each `fixed` finding has `retest.status = "passed"` with existing evidence.
+- Each `accessed` or `revalidated` reference has its URL in `research/log.json`. A missing URL is treated as fabricated and makes the report invalid.
+- `research.status = "done"` requires at least one valid reference. `not_done` requires a cause.
+- An exception requires `accepted_by`, `date` and an explicit request from the user (`quote`). The agent never grants itself one.
+- The written decision must equal the computed decision. `--apply` writes the computed decision only if everything else is consistent.
 
-## Défauts résiduels et exceptions
+## Residual findings and exceptions
 
-- Les défauts modérés et mineurs restants sont listés avec leur priorité. Ils ne bloquent pas, sauf exigence contraire du projet.
-- Exception sur un majeur `EXIGENCE` : uniquement si l'utilisateur l'accepte explicitement dans la conversation. Consigner `{"acceptee_par": "utilisateur", "date": "...", "citation": "<ses mots>", "echeance": "..."}`.
-- Les exceptions ouvertes sont rappelées aux audits suivants (`.ui-audit/exceptions.json`).
+- Remaining moderate and minor findings are listed with their priority. They do not block, unless the project requires otherwise.
+- Exception on a major `REQUIREMENT` finding: only if the user explicitly accepts it in the conversation. Record `{"accepted_by": "user", "date": "...", "quote": "<their words>", "due": "..."}`.
+- Open exceptions are brought up again in later audits (`.ui-audit/exceptions.json`).

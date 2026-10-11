@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Génère la suite de scènes à partir de site-map.json : tout ce qu'un utilisateur peut faire,
-une scène par action, option, paramètre ou réglage, plus les variantes d'environnement.
+"""Generate the scene suite from site-map.json: everything a user can do,
+one scene per action, option, parameter or setting, plus the environment variants.
 
-Les identifiants (S-0001...) restent stables entre deux générations : une scène existante garde son
-numéro, les nouvelles sont ajoutées, celles qui ont disparu sont listées comme retirées.
+Identifiers (S-0001...) stay stable between two generations: an existing scene keeps its
+number, new ones are added, and those that disappeared are listed as removed.
 
-Exemples :
+Examples:
   python3 generate_scenarios.py --site-map ui-scenes/site-map.json --out ui-scenes/scenes.json
   python3 generate_scenarios.py --site-map ui-scenes/site-map.json --out ui-scenes/scenes.json --export-playwright tests/ui-scenes.spec.ts
 """
@@ -19,13 +19,13 @@ from urllib.parse import parse_qsl, urlencode, urlparse
 from _common import load_config, now_iso, read_json, write_json
 
 EDGE = load_config("fixtures/edge-text.json")
-CATEGORY_ORDER = ["page", "controle", "bascule", "onglet", "menu", "liste", "case", "radio", "curseur",
-                  "formulaire", "parametre-url", "reglage", "environnement"]
+CATEGORY_ORDER = ["page", "control", "toggle", "tab", "menu", "select", "checkbox", "radio", "range",
+                  "form", "url-param", "setting", "environment"]
 NAME_HINTS = [
-    (r"(pr[ée]nom|first)", "Camille"), (r"(nom|name|last)", "Camille Martin"), (r"(ville|city)", "Lyon"),
-    (r"(code ?postal|zip|postcode)", "69001"), (r"(adresse|address|rue|street)", "12 rue de la République"),
-    (r"(soci[ée]t[ée]|company|entreprise)", "Exemple SARL"), (r"(pays|country)", "France"),
-    (r"(message|comment|description|bio)", "Message de test de l'audit UI."), (r"(search|recherche|q$|query)", "test"),
+    (r"(pr[ée]nom|first)", "Alex"), (r"(nom|name|last)", "Alex Martin"), (r"(ville|city)", "London"),
+    (r"(code ?postal|zip|postcode)", "SW1A 1AA"), (r"(adresse|address|rue|street)", "12 High Street"),
+    (r"(soci[ée]t[ée]|company|entreprise)", "Example Ltd"), (r"(pays|country)", "United Kingdom"),
+    (r"(message|comment|description|bio)", "UI audit test message."), (r"(search|recherche|q$|query)", "test"),
 ]
 
 
@@ -40,7 +40,7 @@ def valid_value(field):
     if kind == "email":
         return "test.ui@example.com"
     if kind == "tel":
-        return "+33123456789"
+        return "+442071234567"
     if kind == "url":
         return "https://example.com"
     if kind == "password":
@@ -61,15 +61,15 @@ def valid_value(field):
     for pattern, value in NAME_HINTS:
         if re.search(pattern, label):
             return value
-    return "Texte de test"
+    return "Test text"
 
 
 def invalid_value(field):
     kind = field["type"]
     if kind == "email":
-        return "pas-un-email"
+        return "not-an-email"
     if kind == "url":
-        return "pas une url"
+        return "not a url"
     if kind == "tel":
         return "abc"
     if kind == "number":
@@ -85,12 +85,12 @@ def invalid_value(field):
 
 def long_value(field):
     if field["type"] == "email":
-        return EDGE["email_long"]
+        return EDGE["long_email"]
     if field["type"] in ("number", "date", "time", "datetime-local", "month", "color", "range"):
         return None
     if field.get("maxlength"):
         return ("Donaudampfschiff" * 20)[: field["maxlength"] + 5]
-    return EDGE["long_de"] + " " + EDGE["mot_sans_espace"]
+    return EDGE["long_de"] + " " + EDGE["no_space_word"]
 
 
 def fill_actions(fields, mode):
@@ -100,20 +100,20 @@ def fill_actions(fields, mode):
             continue
         if field["tag"] == "select":
             options = [o for o in field.get("options") or [] if o["value"] != ""]
-            if mode != "vide" and options:
+            if mode != "empty" and options:
                 actions.append({"select": [field["selector"], options[0]["value"]]})
             continue
         if field["type"] in ("checkbox", "radio"):
-            if mode != "vide" and field.get("required"):
+            if mode != "empty" and field.get("required"):
                 actions.append({"check": field["selector"]})
             continue
         if field["type"] in ("file", "range", "hidden"):
             continue
-        if mode == "vide":
+        if mode == "empty":
             actions.append({"fill": [field["selector"], ""]})
             continue
         value = valid_value(field)
-        if mode == "invalide":
+        if mode == "invalid":
             value = invalid_value(field) or value
         if mode == "long":
             value = long_value(field) or value
@@ -129,7 +129,7 @@ class SceneBook:
         self.skipped = []
         self.keys = set()
 
-    def add(self, category, title, page, actions, risk="sur", environment=None, checks=None, key_extra=""):
+    def add(self, category, title, page, actions, risk="safe", environment=None, checks=None, key_extra=""):
         key_source = json.dumps([category, page, key_extra or actions, environment or {}], ensure_ascii=False, sort_keys=True)
         key = hashlib.sha1(key_source.encode("utf-8")).hexdigest()[:16]
         if key in self.keys:
@@ -140,25 +140,25 @@ class SceneBook:
             scene_id = f"S-{self.next_number:04d}"
             self.next_number += 1
         self.scenes.append({
-            "id": scene_id, "key": key, "categorie": category, "titre": title, "page": page,
-            "risque": risk, "environnement": environment or {}, "actions": actions, "verifie": checks or ["rendu"],
+            "id": scene_id, "key": key, "category": category, "title": title, "page": page,
+            "risk": risk, "environment": environment or {}, "actions": actions, "checks": checks or ["render"],
         })
 
     def skip(self, what, reason):
-        self.skipped.append({"element": what, "raison": reason})
+        self.skipped.append({"element": what, "reason": reason})
 
 
 def build(site_map, args):
     previous = read_json(args.out, {}) or {}
     book = SceneBook(previous)
-    pages = [p for p in site_map["pages"] if not p.get("error") and not p.get("acces_bloque")]
-    for blocked_page in site_map.get("pages_bloquees", []):
-        book.skip(blocked_page["url"], f"page refusée à l'exploration : {blocked_page['raison']}")
+    pages = [p for p in site_map["pages"] if not p.get("error") and not p.get("access_blocked")]
+    for blocked_page in site_map.get("blocked_pages", []):
+        book.skip(blocked_page["url"], f"page refused during exploration: {blocked_page['reason']}")
     explored_paths = set()
     for found in pages:
         page = path_of(found["url"])
         goto = {"goto": page}
-        book.add("page", f"Chargement de {page}", page, [goto, {"snapshot": "chargement"}], checks=["rendu", "console"])
+        book.add("page", f"Load {page}", page, [goto, {"snapshot": "load"}], checks=["render", "console"])
         bare_path = urlparse(found["url"]).path
         if bare_path in explored_paths:
             continue
@@ -166,124 +166,124 @@ def build(site_map, args):
 
         for control in found.get("controls", []):
             name = control["name"] or control["selector"]
-            prerequisites = control.get("prerequis", [])
-            label = f"« {name[:50]} » ({control['kind']}) sur {page}"
-            if control["risk"] in ("destructif", "telechargement"):
-                book.skip(label, f"risque {control['risk']} : à tester dans un environnement de test avec --allow-mutations")
+            prerequisites = control.get("prerequisites", [])
+            label = f"\"{name[:50]}\" ({control['kind']}) on {page}"
+            if control["risk"] in ("destructive", "download"):
+                book.skip(label, f"{control['risk']} risk: test in a test environment with --allow-mutations")
                 continue
-            if control["kind"] in ("champ", "fichier"):
+            if control["kind"] in ("field", "file"):
                 continue
             if not control.get("visible", True) and not prerequisites:
-                book.skip(label, "élément caché qu'aucune interaction explorée ne révèle (menu au survol, état particulier)")
+                book.skip(label, "hidden element that no explored interaction reveals (hover menu, special state)")
                 continue
             base = [goto, *prerequisites]
-            if control["kind"] == "bascule":
+            if control["kind"] == "toggle":
                 popup = control.get("haspopup") not in (None, "", "false")
-                closing = [{"press": "Escape"}, {"snapshot": "ferme-par-echap"}] if popup else [{"click_optional": control["selector"]}, {"snapshot": "referme"}]
-                book.add("bascule", f"Ouvrir puis fermer {label}", page,
-                         base + [{"click_effect": control["selector"]}, {"snapshot": "ouvert"}, *closing],
-                         checks=["rendu", "effet", "fermeture", "defilement"])
-            elif control["kind"] == "onglet":
-                book.add("onglet", f"Activer l'onglet {label}", page, base + [{"click_effect": control["selector"]}, {"snapshot": "onglet-actif"}], checks=["rendu", "effet"])
-            elif control["kind"] == "element-menu":
-                book.add("menu", f"Choisir {label}", page, base + [{"click_effect": control["selector"]}, {"snapshot": "apres-choix"}], checks=["rendu", "effet"])
-            elif control["kind"] == "liste" and control.get("field"):
+                closing = [{"press": "Escape"}, {"snapshot": "closed-by-escape"}] if popup else [{"click_optional": control["selector"]}, {"snapshot": "closed"}]
+                book.add("toggle", f"Open then close {label}", page,
+                         base + [{"click_effect": control["selector"]}, {"snapshot": "open"}, *closing],
+                         checks=["render", "effect", "closing", "scroll"])
+            elif control["kind"] == "tab":
+                book.add("tab", f"Activate tab {label}", page, base + [{"click_effect": control["selector"]}, {"snapshot": "tab-active"}], checks=["render", "effect"])
+            elif control["kind"] == "menu-item":
+                book.add("menu", f"Choose {label}", page, base + [{"click_effect": control["selector"]}, {"snapshot": "after-choice"}], checks=["render", "effect"])
+            elif control["kind"] == "select" and control.get("field"):
                 options = [o for o in control["field"].get("options") or [] if o["value"] != ""]
                 chosen = options if len(options) <= args.max_options else options[:2] + [options[len(options) // 2]] + options[-1:]
                 if len(options) > args.max_options:
-                    book.skip(label, f"{len(options)} options : échantillon de {len(chosen)} (premières, milieu, dernière)")
+                    book.skip(label, f"{len(options)} options: sample of {len(chosen)} (first, middle, last)")
                 for option in chosen:
-                    category = "reglage" if control.get("setting") else "liste"
-                    book.add(category, f"Option « {option['label'][:40]} » de {label}", page,
+                    category = "setting" if control.get("setting") else "select"
+                    book.add(category, f"Option \"{option['label'][:40]}\" of {label}", page,
                              base + [{"select": [control["selector"], option["value"]]}, {"wait": 300}, {"snapshot": f"option-{option['value'][:20]}"}],
-                             checks=["rendu", "coherence"], key_extra=f"{control['selector']}={option['value']}")
-            elif control["kind"] in ("case", "interrupteur"):
-                category = "reglage" if control.get("setting") else "case"
-                book.add(category, f"Cocher et décocher {label}", page,
-                         base + [{"click_effect": control["selector"]}, {"snapshot": "active"}, {"click_optional": control["selector"]}, {"snapshot": "desactive"}],
-                         checks=["rendu", "effet", "coherence"])
+                             checks=["render", "consistency"], key_extra=f"{control['selector']}={option['value']}")
+            elif control["kind"] in ("checkbox", "switch"):
+                category = "setting" if control.get("setting") else "checkbox"
+                book.add(category, f"Check then uncheck {label}", page,
+                         base + [{"click_effect": control["selector"]}, {"snapshot": "on"}, {"click_optional": control["selector"]}, {"snapshot": "off"}],
+                         checks=["render", "effect", "consistency"])
             elif control["kind"] == "radio":
-                category = "reglage" if control.get("setting") else "radio"
-                book.add(category, f"Choisir {label}", page, base + [{"click": control["selector"]}, {"wait": 300}, {"snapshot": "choisi"}], checks=["rendu", "coherence"])
-            elif control["kind"] == "curseur":
+                category = "setting" if control.get("setting") else "radio"
+                book.add(category, f"Choose {label}", page, base + [{"click": control["selector"]}, {"wait": 300}, {"snapshot": "chosen"}], checks=["render", "consistency"])
+            elif control["kind"] == "range":
                 field = control.get("field") or {}
                 for bound in ("min", "max"):
                     if field.get(bound) not in (None, ""):
-                        book.add("curseur", f"Curseur {label} à {bound}", page,
-                                 base + [{"fill": [control["selector"], field[bound]]}, {"snapshot": f"curseur-{bound}"}], checks=["rendu"], key_extra=f"{control['selector']}:{bound}")
-            elif control["kind"] in ("action", "ancre", "option", "reinitialisation"):
-                category = "reglage" if control.get("setting") else "controle"
-                book.add(category, f"Activer {label}", page, base + [{"click_effect": control["selector"]}, {"snapshot": "apres-action"}], checks=["rendu", "effet", "coherence"])
+                        book.add("range", f"Range {label} at {bound}", page,
+                                 base + [{"fill": [control["selector"], field[bound]]}, {"snapshot": f"range-{bound}"}], checks=["render"], key_extra=f"{control['selector']}:{bound}")
+            elif control["kind"] in ("action", "anchor", "option", "reset"):
+                category = "setting" if control.get("setting") else "control"
+                book.add(category, f"Activate {label}", page, base + [{"click_effect": control["selector"]}, {"snapshot": "after-action"}], checks=["render", "effect", "consistency"])
 
         for form in found.get("forms", []):
             if not form.get("fields") and not form.get("submit"):
                 continue
-            label = f"formulaire « {(form['name'] or form['selector'])[:40]} » sur {page}"
-            if not form.get("visible", True) and not form.get("prerequis"):
-                book.skip(label, "formulaire caché qu'aucune interaction explorée ne révèle")
+            label = f"form \"{(form['name'] or form['selector'])[:40]}\" on {page}"
+            if not form.get("visible", True) and not form.get("prerequisites"):
+                book.skip(label, "hidden form that no explored interaction reveals")
                 continue
-            base = [goto, *form.get("prerequis", [])]
-            risk = "mutation" if form["risk"] in ("mutation", "destructif") else "sur"
-            if form["risk"] == "destructif" and not args.allow_destructive:
-                book.skip(label, "formulaire destructif : scènes de saisie seulement, sans soumission")
-            submit = [{"click": form["submit"]}] if form.get("submit") and (form["risk"] != "destructif" or args.allow_destructive) else [{"press": "Enter"}] if form["risk"] != "destructif" else []
-            for mode, title in (("vide", "envoi vide"), ("invalide", "valeurs invalides"), ("valide", "valeurs valides"), ("long", "contenus très longs")):
+            base = [goto, *form.get("prerequisites", [])]
+            risk = "mutation" if form["risk"] in ("mutation", "destructive") else "safe"
+            if form["risk"] == "destructive" and not args.allow_destructive:
+                book.skip(label, "destructive form: input scenes only, no submission")
+            submit = [{"click": form["submit"]}] if form.get("submit") and (form["risk"] != "destructive" or args.allow_destructive) else [{"press": "Enter"}] if form["risk"] != "destructive" else []
+            for mode, title in (("empty", "empty submit"), ("invalid", "invalid values"), ("valid", "valid values"), ("long", "very long content")):
                 actions = base + fill_actions(form["fields"], mode)
                 if mode == "long":
-                    actions += [{"snapshot": "saisie-longue"}]
-                actions += submit + [{"wait": 400}, {"snapshot": f"apres-envoi-{mode}"}]
-                book.add("formulaire", f"{label} : {title}", page, actions, risk=risk, checks=["rendu", "erreurs-formulaire", "effet"], key_extra=f"{form['selector']}:{mode}")
+                    actions += [{"snapshot": "long-input"}]
+                actions += submit + [{"wait": 400}, {"snapshot": f"after-submit-{mode}"}]
+                book.add("form", f"{label}: {title}", page, actions, risk=risk, checks=["render", "form-errors", "effect"], key_extra=f"{form['selector']}:{mode}")
 
     first_page = path_of(pages[0]["url"]) if pages else "/"
     sample_pages = [path_of(p["url"]) for p in pages[: args.env_pages]]
-    for name, values in site_map.get("parametres_url", {}).items():
+    for name, values in site_map.get("url_params", {}).items():
         target = next((p for p in pages if name in dict(parse_qsl(urlparse(p["url"]).query))), pages[0] if pages else None)
         base_path = urlparse(target["url"]).path if target else "/"
-        for value in values[: args.max_options] + ["valeur-inattendue-<>&", ""]:
+        for value in values[: args.max_options] + ["unexpected-value-<>&", ""]:
             query = urlencode({name: value})
-            book.add("parametre-url", f"Paramètre {name}={value[:30]!r}", f"{base_path}?{query}",
-                     [{"goto": f"{base_path}?{query}"}, {"snapshot": "parametre"}], checks=["rendu", "console"], key_extra=f"{name}={value}")
+            book.add("url-param", f"URL parameter {name}={value[:30]!r}", f"{base_path}?{query}",
+                     [{"goto": f"{base_path}?{query}"}, {"snapshot": "param"}], checks=["render", "console"], key_extra=f"{name}={value}")
 
-    environments = [({"theme": "dark"}, "thème sombre système"), ({"reduced_motion": "reduce"}, "mouvement réduit"), ({"zoom": 2}, "zoom 200 %")]
-    environments += [({"locale": lang}, f"langue {lang}") for lang in site_map.get("langues", [])[:6]]
+    environments = [({"theme": "dark"}, "system dark theme"), ({"reduced_motion": "reduce"}, "reduced motion"), ({"zoom": 2}, "200% zoom")]
+    environments += [({"locale": lang}, f"language {lang}") for lang in site_map.get("languages", [])[:6]]
     for page in sample_pages:
         for environment, title in environments:
-            book.add("environnement", f"{page} en {title}", page, [{"goto": page}, {"snapshot": "environnement"}], environment=environment, checks=["rendu", "coherence"])
+            book.add("environment", f"{page} with {title}", page, [{"goto": page}, {"snapshot": "environment"}], environment=environment, checks=["render", "consistency"])
     for found in pages:
         for alternate in found.get("alternates", [])[:6]:
             page = path_of(alternate["href"])
-            book.add("environnement", f"Version {alternate['hreflang']} de {path_of(found['url'])}", page, [{"goto": page}, {"snapshot": "langue"}],
-                     checks=["rendu", "traduction"], key_extra=f"hreflang:{alternate['href']}")
+            book.add("environment", f"{alternate['hreflang']} version of {path_of(found['url'])}", page, [{"goto": page}, {"snapshot": "language"}],
+                     checks=["render", "translation"], key_extra=f"hreflang:{alternate['href']}")
 
     order = {c: i for i, c in enumerate(CATEGORY_ORDER)}
-    book.scenes.sort(key=lambda s: (order.get(s["categorie"], 99), s["id"]))
+    book.scenes.sort(key=lambda s: (order.get(s["category"], 99), s["id"]))
     if args.max_scenes and len(book.scenes) > args.max_scenes:
         for scene in book.scenes[args.max_scenes:]:
-            book.skip(f"{scene['id']} {scene['titre']}", f"budget --max-scenes {args.max_scenes} atteint")
+            book.skip(f"{scene['id']} {scene['title']}", f"--max-scenes budget {args.max_scenes} reached")
         book.scenes = book.scenes[: args.max_scenes]
     removed = [{"id": sid, "key": key} for key, sid in book.previous.items() if key not in book.keys]
     book.scenes.sort(key=lambda s: s["id"])
     return {
         "version": 1,
-        "genere_le": now_iso(),
-        "source": site_map.get("depart"),
-        "origine": site_map.get("origine"),
-        "points_de_rupture": site_map.get("points_de_rupture", []),
-        "langues": site_map.get("langues", []),
-        "theme_sombre_css": site_map.get("theme_sombre_css", False),
+        "generated_at": now_iso(),
+        "source": site_map.get("start"),
+        "origin": site_map.get("origin"),
+        "breakpoints": site_map.get("breakpoints", []),
+        "languages": site_map.get("languages", []),
+        "dark_scheme_css": site_map.get("dark_scheme_css", False),
         "scenes": book.scenes,
-        "non_couvert": book.skipped + [
-            {"element": "combinaisons de plusieurs réglages à la fois", "raison": "une option à la fois (one-factor-at-a-time) ; combiner les réglages critiques à la main si nécessaire"},
-            {"element": "téléversement de fichiers, glisser-déposer, gestes multi-doigts", "raison": "non générés automatiquement"},
-            {"element": "liens externes", "raison": f"{len(site_map.get('liens_externes', []))} liens hors du site non suivis"},
+        "not_covered": book.skipped + [
+            {"element": "combinations of several settings at once", "reason": "one option at a time (one-factor-at-a-time); combine critical settings by hand if needed"},
+            {"element": "file uploads, drag and drop, multi-finger gestures", "reason": "not generated automatically"},
+            {"element": "external links", "reason": f"{len(site_map.get('external_links', []))} off-site links not followed"},
         ],
-        "retirees": removed,
-        "resume": {
+        "removed": removed,
+        "summary": {
             "scenes": len(book.scenes),
-            "par_categorie": {c: sum(1 for s in book.scenes if s["categorie"] == c) for c in CATEGORY_ORDER if any(s["categorie"] == c for s in book.scenes)},
-            "non_couvert": len(book.skipped),
-            "nouvelles": sum(1 for s in book.scenes if s["key"] not in book.previous),
-            "retirees": len(removed),
+            "by_category": {c: sum(1 for s in book.scenes if s["category"] == c) for c in CATEGORY_ORDER if any(s["category"] == c for s in book.scenes)},
+            "not_covered": len(book.skipped),
+            "new": sum(1 for s in book.scenes if s["key"] not in book.previous),
+            "removed": len(removed),
         },
     }
 
@@ -292,22 +292,22 @@ def to_playwright(suite, allow_mutations):
     lines = [
         "import { test, expect, type Page } from '@playwright/test';",
         "",
-        f"const BASE = process.env.UI_BASE_URL ?? {json.dumps(suite.get('origine') or 'http://localhost:3000')};",
+        f"const BASE = process.env.UI_BASE_URL ?? {json.dumps(suite.get('origin') or 'http://localhost:3000')};",
         "",
         "async function checkScene(page: Page, name: string) {",
         "  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);",
-        "  expect(overflow, 'défilement horizontal involontaire').toBeLessThanOrEqual(1);",
+        "  expect(overflow, 'unintended horizontal scroll').toBeLessThanOrEqual(1);",
         "  await expect(page).toHaveScreenshot(`${name}.png`, { fullPage: true, animations: 'disabled', maxDiffPixelRatio: 0.01 });",
         "}",
         "",
-        "test.describe('Scènes UI générées par ui-audit-gate', () => {",
+        "test.describe('UI scenes generated by ui-audit-gate', () => {",
         "  test.beforeEach(async ({ page }) => {",
     ]
     if not allow_mutations:
         lines.append("    await page.route('**/*', (route) => (['GET', 'HEAD', 'OPTIONS'].includes(route.request().method()) ? route.continue() : route.abort()));")
     lines += ["  });", ""]
     for scene in suite["scenes"]:
-        environment = scene.get("environnement") or {}
+        environment = scene.get("environment") or {}
         options = []
         if environment.get("theme"):
             options.append(f"colorScheme: {json.dumps(environment['theme'])}")
@@ -315,7 +315,7 @@ def to_playwright(suite, allow_mutations):
             options.append(f"reducedMotion: {json.dumps(environment['reduced_motion'])}")
         if environment.get("locale"):
             options.append(f"locale: {json.dumps(environment['locale'])}")
-        title = json.dumps(f"{scene['id']} {scene['titre']}"[:180], ensure_ascii=False)
+        title = json.dumps(f"{scene['id']} {scene['title']}"[:180], ensure_ascii=False)
         if options:
             lines.append(f"  test.describe(() => {{ test.use({{ {', '.join(options)} }});")
         lines.append(f"  test({title}, async ({{ page }}) => {{")
@@ -360,12 +360,12 @@ def ignore_run_artifacts(suite_dir):
 
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=suite_dir, capture_output=True, text=True)
     if top.returncode != 0:
-        return "pas un dépôt git"
+        return "not a git repository"
     root = Path(top.stdout.strip())
     try:
         relative = suite_dir.resolve().relative_to(root).as_posix()
     except ValueError:
-        return "suite hors du dépôt"
+        return "suite outside the repository"
     wanted = [f"{relative}/runs/", f"{relative}/last-review.json"]
     gitignore = root / ".gitignore"
     lines = gitignore.read_text(encoding="utf-8").splitlines() if gitignore.exists() else []
@@ -373,26 +373,26 @@ def ignore_run_artifacts(suite_dir):
     if missing:
         with gitignore.open("a", encoding="utf-8") as handle:
             handle.write(("\n" if lines and lines[-1].strip() else "") + "\n".join(missing) + "\n")
-        return "ajouté : " + ", ".join(missing)
-    return "déjà ignoré"
+        return "added: " + ", ".join(missing)
+    return "already ignored"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--site-map", required=True)
-    parser.add_argument("--out", required=True, help="Fichier scenes.json (mis à jour en gardant les identifiants)")
-    parser.add_argument("--max-options", type=int, default=12, help="Au-delà, échantillonner les options d'une liste")
-    parser.add_argument("--env-pages", type=int, default=5, help="Pages rejouées dans chaque variante d'environnement")
-    parser.add_argument("--max-scenes", type=int, default=0, help="Plafond (0 = aucun) ; le surplus est listé comme non couvert")
-    parser.add_argument("--allow-destructive", action="store_true", help="Générer aussi les soumissions destructives (environnement de test uniquement)")
-    parser.add_argument("--export-playwright", help="Écrire aussi un fichier de tests @playwright/test (.spec.ts)")
+    parser.add_argument("--out", required=True, help="scenes.json file (updated while keeping identifiers)")
+    parser.add_argument("--max-options", type=int, default=12, help="Beyond this, sample the options of a select")
+    parser.add_argument("--env-pages", type=int, default=5, help="Pages replayed in each environment variant")
+    parser.add_argument("--max-scenes", type=int, default=0, help="Cap (0 = none); the surplus is listed as not covered")
+    parser.add_argument("--allow-destructive", action="store_true", help="Also generate destructive submissions (test environment only)")
+    parser.add_argument("--export-playwright", help="Also write a @playwright/test test file (.spec.ts)")
     args = parser.parse_args()
 
     site_map = read_json(args.site_map)
     suite = build(site_map, args)
     write_json(args.out, suite)
     ignore_note = ignore_run_artifacts(Path(args.out).parent)
-    result = {"tool": "generate_scenarios", "out": args.out, **suite["resume"], "gitignore": ignore_note}
+    result = {"tool": "generate_scenarios", "out": args.out, **suite["summary"], "gitignore": ignore_note}
     if args.export_playwright:
         target = Path(args.export_playwright)
         target.parent.mkdir(parents=True, exist_ok=True)

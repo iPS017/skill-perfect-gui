@@ -1,114 +1,114 @@
-# États et configurations
+# States and configurations
 
-## États
+## States
 
-| Code | État | Comment le provoquer |
+| Code | State | How to trigger it |
 |---|---|---|
-| S-INIT | Premier rendu | Chargement à froid |
-| S-NORM | Normal, données typiques | `config/fixtures/typical` ou données du projet |
-| S-HOV | Survol | Action `hover` (pointeur fin seulement) |
-| S-FOC | Focus clavier | `keyboard_walk.py` ou action `press: Tab` |
-| S-ACT | Pressé | Action `eval` dispatchant `pointerdown` |
-| S-SEL | Sélectionné, coché, ouvert | Interaction |
-| S-DIS | Désactivé | Condition métier |
-| S-LOAD | Chargement | Réponse retardée (mock projet, réseau bridé) |
-| S-EMPTY | Vide | Données vides |
-| S-ERR | Erreur (champ, page, réseau, serveur) | Saisie invalide, mocks 4xx et 5xx, hors ligne |
-| S-OK | Succès | Parcours complet |
-| S-VAL | Validation en cours | Validation asynchrone retardée |
-| S-DLG | Dialogue ou overlay ouvert | Interaction |
-| S-INT | Interruption | Arrière-plan, expiration, perte réseau, redimensionnement |
+| S-INIT | First render | Cold load |
+| S-NORM | Normal, typical data | `config/fixtures/typical` or project data |
+| S-HOV | Hover | `hover` action (fine pointer only) |
+| S-FOC | Keyboard focus | `keyboard_walk.py` or the action `press: Tab` |
+| S-ACT | Pressed | `eval` action dispatching `pointerdown` |
+| S-SEL | Selected, checked, open | Interaction |
+| S-DIS | Disabled | Business condition |
+| S-LOAD | Loading | Delayed response (project mock, throttled network) |
+| S-EMPTY | Empty | Empty data |
+| S-ERR | Error (field, page, network, server) | Invalid input, 4xx and 5xx mocks, offline |
+| S-OK | Success | Complete user flow |
+| S-VAL | Validation in progress | Delayed asynchronous validation |
+| S-DLG | Dialog or overlay open | Interaction |
+| S-INT | Interruption | Background, expiry, network loss, resize |
 
-Transitions à vérifier explicitement : `LOAD -> OK`, `LOAD -> ERR`, `ERR -> correction -> OK`, `NORM -> DLG -> NORM` (focus restitué au déclencheur), `NORM -> redimensionnement ou orientation -> NORM` (état conservé), `OK -> retour arrière`, `INT -> reprise`.
+Transitions to check explicitly: `LOAD -> OK`, `LOAD -> ERR`, `ERR -> correction -> OK`, `NORM -> DLG -> NORM` (focus returned to the trigger), `NORM -> resize or orientation change -> NORM` (state preserved), `OK -> back navigation`, `INT -> resume`.
 
-Le croisement contrôle × état suit la colonne « états » de chaque contrôle. Il ne s'agit pas d'un produit cartésien complet.
+The control x state crossing follows the "states" column of each control. It is not a full Cartesian product.
 
-## Dimensions à ne pas confondre
+## Dimensions not to confuse
 
-| Dimension | Définition |
+| Dimension | Definition |
 |---|---|
-| Viewport CSS | `innerWidth × innerHeight` en pixels CSS. C'est ce que voient les media queries. |
+| CSS viewport | `innerWidth x innerHeight` in CSS pixels. This is what media queries see. |
 | DPR | `devicePixelRatio` |
-| Résolution de capture | Viewport × DPR. Les captures annotées sont en échelle CSS (1 px = 1 px CSS). |
-| Zoom navigateur | `--zoom 2` sur une fenêtre de 1280 px donne un viewport CSS de 640 px |
-| Échelle de l'OS | Mise à l'échelle système (non émulée) |
-| Taille de texte utilisateur | Police par défaut agrandie (à émuler par `eval` sur `html { font-size }`, résultat approximatif) |
+| Capture resolution | Viewport x DPR. Annotated screenshots are at CSS scale (1 px = 1 CSS px). |
+| Browser zoom | `--zoom 2` on a 1280 px window gives a 640 px CSS viewport |
+| OS scaling | System scaling (not emulated) |
+| User text size | Enlarged default font (to be emulated with `eval` on `html { font-size }`, approximate result) |
 
-## Viewports (pixels CSS)
+## Viewports (CSS pixels)
 
-Source machine : `config/viewports.json`. Ces largeurs représentent des **classes**, pas des appareils.
+Machine-readable source: `config/viewports.json`. These widths represent **classes**, not devices.
 
-| Priorité | Identifiant | Taille | Raison |
+| Priority | ID | Size | Reason |
 |---|---|---|---|
-| P0 | mobile-narrow | 320 × 640 | Plancher de reflow (WCAG 1.4.10, à vérifier) |
-| P0 | mobile | 390 × 844 | Téléphone courant |
-| P0 | laptop | 1366 × 768 | Laptop |
-| P0 | desktop-md | 1440 × 900 | Laptop large |
-| P1 | mobile-large | 430 × 932 | Grand téléphone |
-| P1 | mobile-landscape | 844 × 390 | Hauteur réduite |
-| P1 | tablet-portrait | 768 × 1024 | Tablette |
-| P1 | tablet-portrait-lg | 820 × 1180 | Tablette |
-| P1 | tablet-landscape | 1024 × 768 | Tablette paysage |
-| P1 | tablet-landscape-lg | 1180 × 820 | Tablette paysage |
-| P1 | desktop | 1920 × 1080 | Bureau |
-| P2 | small-desktop | 1024 × 640 | Petite fenêtre |
-| P2 | split-half | 960 × 1080 | Écran partagé |
-| P2 | ultrawide | 2560 × 1080 | Longueur de ligne, étirement |
-| P2 | ultrawide-xl | 3440 × 1440 | Ultrawide |
-| P2 | short | 1280 × 600 | Hauteur faible |
-| P2 | phone-landscape-small | 640 × 360 | Petit paysage |
-| Reflow | reflow | 320 × 256 | Défilement horizontal |
+| P0 | mobile-narrow | 320 x 640 | Reflow floor (WCAG 1.4.10, to be verified) |
+| P0 | mobile | 390 x 844 | Common phone |
+| P0 | laptop | 1366 x 768 | Laptop |
+| P0 | desktop-md | 1440 x 900 | Large laptop |
+| P1 | mobile-large | 430 x 932 | Large phone |
+| P1 | mobile-landscape | 844 x 390 | Reduced height |
+| P1 | tablet-portrait | 768 x 1024 | Tablet |
+| P1 | tablet-portrait-lg | 820 x 1180 | Tablet |
+| P1 | tablet-landscape | 1024 x 768 | Landscape tablet |
+| P1 | tablet-landscape-lg | 1180 x 820 | Landscape tablet |
+| P1 | desktop | 1920 x 1080 | Desktop |
+| P2 | small-desktop | 1024 x 640 | Small window |
+| P2 | split-half | 960 x 1080 | Split screen |
+| P2 | ultrawide | 2560 x 1080 | Line length, stretching |
+| P2 | ultrawide-xl | 3440 x 1440 | Ultrawide |
+| P2 | short | 1280 x 600 | Low height |
+| P2 | phone-landscape-small | 640 x 360 | Small landscape |
+| Reflow | reflow | 320 x 256 | Horizontal scrolling |
 
-**Points de rupture.** Extraire les breakpoints réels du projet (media queries, container queries, configuration Tailwind ou du framework CSS) avec par exemple `grep -rhoE "@media[^{]+" src | sort -u`. Pour chaque breakpoint `b` qui concerne le périmètre, tester `b-1`, `b` et `b+1` avec le contenu le plus long : `--viewports 767x900,768x900,769x900`.
+**Breakpoints.** Extract the project's real breakpoints (media queries, container queries, Tailwind or CSS framework configuration), for example with `grep -rhoE "@media[^{]+" src | sort -u`. For each breakpoint `b` relevant to the scope, test `b-1`, `b` and `b+1` with the longest content, for example `--viewports 767x900,768x900,769x900`.
 
-## Redimensionnement en cours d'usage
+## Resizing during use
 
-`resize_probe.py --mode state --widths 1366,960,600,390,1366` remplit les champs, puis redimensionne. Il vérifie que les valeurs, le focus, les dialogues ouverts et la page elle-même (pas de rechargement) sont conservés. Préparer l'état voulu avec `--actions` (ouvrir une modale, passer à l'étape 2).
+`resize_probe.py --mode state --widths 1366,960,600,390,1366` fills in the fields, then resizes. It checks that the values, the focus, the open dialogs and the page itself (no reload) are preserved. Prepare the desired state with `--actions` (open a modal, go to step 2).
 
-## Pliables
+## Foldables
 
-Lire `devices.md` avant de citer un appareil.
+Read `devices.md` before citing a device.
 
-| Classe | Description | À vérifier |
+| Class | Description | To check |
 |---|---|---|
-| F-FLIP-FERMÉ | Petit écran externe d'un pliable à clapet | Navigateur disponible ? Contenu minimal, cibles |
-| F-FLIP-OUVERT | Écran principal très allongé | Hauteur importante, largeur de téléphone |
-| F-LIVRE-FERMÉ | Écran externe étroit et haut | Largeur parfois inférieure à un téléphone classique |
-| F-LIVRE-OUVERT | Écran interne quasi carré | Bascule mobile / tablette, deux colonnes |
-| F-SEMI-PLIÉ | Posture partiellement ouverte | Seulement si la posture est exposée au Web |
-| F-DOUBLE-ÉCRAN | Deux écrans et une charnière | Segments de viewport |
+| F-FLIP-CLOSED | Small external screen of a clamshell foldable | Is a browser available? Minimal content, targets |
+| F-FLIP-OPEN | Very tall main screen | Large height, phone width |
+| F-BOOK-CLOSED | Narrow, tall external screen | Width sometimes smaller than a regular phone |
+| F-BOOK-OPEN | Nearly square internal screen | Mobile / tablet switch, two columns |
+| F-HALF-FOLDED | Partially open posture | Only if the posture is exposed to the web |
+| F-DUAL-SCREEN | Two screens and a hinge | Viewport segments |
 
-Les dimensions viennent de sources officielles datées ou de profils d'émulation officiels, jamais de la mémoire. Transitions à tester avec `resize_probe.py --mode state --widths <fermé>,<ouvert>,<fermé>` : saisie, focus, progression et scroll conservés, pas de rechargement.
+Dimensions come from dated official sources or official emulation profiles, never from memory. Test transitions with `resize_probe.py --mode state --widths <closed>,<open>,<closed>` and check that input, focus, progress and scroll are preserved, with no reload.
 
-Charnière et segments : ne tester que si l'information est exposée au Web et prise en charge par le navigateur cible (media features `horizontal-viewport-segments` et `vertical-viewport-segments`, `env(viewport-segment-*)`, API Device Posture). Vérifier leur support au moment de l'audit. Sinon : `non_applicable` (non exposé) ou `non_verifie` avec `raison_type: appareil_reel`.
+Hinge and segments: only test them if the information is exposed to the web and supported by the target browser (media features `horizontal-viewport-segments` and `vertical-viewport-segments`, `env(viewport-segment-*)`, Device Posture API). Check their support at the time of the audit. Otherwise, use `not_applicable` (not exposed) or `not_verified` with `reason_type: real_device`.
 
-## Clavier virtuel, safe areas, barres du navigateur
+## Virtual keyboard, safe areas, browser bars
 
-- `resize_probe.py --mode keyboard --field SEL --action SEL [--ratio 0.55]` réduit la hauteur du viewport comme un clavier en mode resizes-content. Il vérifie que le champ focalisé est visible et non recouvert, et que l'action principale est atteignable par un défilement que l'utilisateur peut réellement faire. Un défilement possible seulement par script (conteneur `overflow: hidden`) compte comme un échec.
-- Limite déclarée : le mode resizes-visual (iOS, Chrome Android par défaut récent), le clavier natif et les barres système ne sont pas reproduits. Les marquer `non_verifie` avec `raison_type: appareil_reel` si le parcours est mobile.
-- Rechercher dans le code les `100vh` d'éléments plein écran et les pieds de page fixes près des formulaires.
+- `resize_probe.py --mode keyboard --field SEL --action SEL [--ratio 0.55]` reduces the viewport height like a keyboard in resizes-content mode. It checks that the focused field is visible and not covered, and that the primary action can be reached by scrolling the user can actually perform. Scrolling that is only possible by script (an `overflow: hidden` container) counts as a failure.
+- Declared limit: the resizes-visual mode (iOS, recent Chrome Android default), the native keyboard and the system bars are not reproduced. Mark them `not_verified` with `reason_type: real_device` if the user flow is mobile.
+- Search the code for `100vh` on full-screen elements and for fixed footers near forms.
 
-## Contenus
+## Content
 
-`config/fixtures/` fournit `edge-text.json` (textes longs, mots sans espace, URL, émojis, scripts non latins, RTL) et `unexpected.json` (null, négatifs, zéro, très grands nombres, HTML échappé). Les injecter via les données de test du projet ou une action `eval`. La pseudo-localisation se fait en page (`inspect_page.py --pseudo`, environ +40 % et des accents) ou sur fichier (`pseudo_locale.py`).
+`config/fixtures/` provides `edge-text.json` (long texts, words without spaces, URLs, emojis, non-Latin scripts, RTL) and `unexpected.json` (null, negatives, zero, very large numbers, escaped HTML). Inject them through the project's test data or an `eval` action. Pseudo-localization is done in the page (`inspect_page.py --pseudo`, about +40% and accents) or on files (`pseudo_locale.py`).
 
-## Échantillonnage fondé sur le risque
+## Risk-based sampling
 
 ```text
-1. Socle (toujours) :
-   contrôles fondamentaux × états touchés × P0
-   + parcours principal au clavier (laptop) + parcours en pointeur grossier (mobile)
-2. Combinaisons critiques selon l'impact :
-   composant modifié × variantes utilisées × {320, breakpoints ±1}
-   contenu modifié × {long, pseudo-locale} × {320, 390}
-   formulaire modifié × {S-ERR, S-LOAD, S-OK} × {clavier, tactile}
-   overlay modifié × {près des 4 bords, 320} × {ouvert, fermeture, focus restitué}
-3. Couverture représentative (N2+) : un viewport par classe P1 × {S-NORM, S-ERR} ; chaque thème × un viewport
-4. Approfondissement (N3 ou défaut trouvé) : configurations voisines de celle en défaut,
-   combinaisons par paires sur thème × langue × préférence × viewport
-5. Écrire coverage.json : {"executees": [...], "exclues": [{"combinaison", "raison", "risque"}]}
+1. Baseline (always):
+   fundamental controls x affected states x P0
+   + main user flow with the keyboard (laptop) + user flow with a coarse pointer (mobile)
+2. Critical combinations depending on the impact:
+   changed component x variants in use x {320, breakpoints +/-1}
+   changed content x {long, pseudo-locale} x {320, 390}
+   changed form x {S-ERR, S-LOAD, S-OK} x {keyboard, touch}
+   changed overlay x {near the 4 edges, 320} x {open, closing, focus returned}
+3. Representative coverage (N2+): one viewport per P1 class x {S-NORM, S-ERR}; each theme x one viewport
+4. Deep dive (N3 or finding detected): configurations neighboring the failing one,
+   pairwise combinations of theme x language x preference x viewport
+5. Write coverage.json: {"executed": [...], "excluded": [{"combination", "reason", "risk"}]}
 ```
 
-## Fidélité
+## Fidelity
 
-Chaque résultat porte `fidelite: simulation | emulation | reel`. Ne sont pas validables sans appareil réel : clavier virtuel natif, charnière physique, performance tactile, lecteurs d'écran mobiles, capteurs, rendu de police propre à l'OS, barres système.
+Each result carries `fidelity: simulation | emulation | real_device`. The following cannot be validated without a real device: native virtual keyboard, physical hinge, touch performance, mobile screen readers, sensors, OS-specific font rendering, system bars.

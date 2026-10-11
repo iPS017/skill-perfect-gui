@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Hook Stop de ui-audit-gate : bloque une fois la fin du tour si des fichiers d'interface ont été
-modifiés dans le dépôt git sans rapport d'audit cohérent plus récent.
+"""ui-audit-gate Stop hook: blocks the end of the turn once if interface files were
+changed in the git repository without a more recent consistent audit report.
 
-Réglages : variable UI_AUDIT_GATE=block|warn|off, ou .ui-audit/config.json
+Settings: variable UI_AUDIT_GATE=block|warn|off, or .ui-audit/config.json
 {"gate": {"mode": "block", "include": ["*.tpl"], "exclude": ["docs/*"]}}.
 """
 import json
@@ -61,31 +61,31 @@ def main():
 
     skip = root / ".ui-audit" / "SKIP"
     if skip.exists() and skip.stat().st_mtime >= latest_change and skip.read_text(encoding="utf-8").strip():
-        respond({"systemMessage": f"ui-audit-gate : audit ignoré à la demande de l'utilisateur ({skip.read_text(encoding='utf-8').strip()[:120]})."})
+        respond({"systemMessage": f"ui-audit-gate: audit skipped at the user's request ({skip.read_text(encoding='utf-8').strip()[:120]})."})
 
     reports = sorted((root / ".ui-audit").glob("RUN-*/report.json"), key=lambda p: p.stat().st_mtime, reverse=True)
     fresh = [r for r in reports if r.stat().st_mtime >= latest_change]
     problem = None
     if not fresh:
-        problem = "aucun rapport d'audit plus récent que les modifications"
+        problem = "no audit report is more recent than the changes"
     else:
         try:
             from verify_report import verify
 
             result = verify(fresh[0].parent)
-            if result["status"] != "ok" or not result.get("decision_ecrite"):
-                problem = f"rapport {fresh[0].parent.name} incohérent ou sans décision ({'; '.join(result.get('errors', [])[:3]) or 'decision absente'})"
+            if result["status"] != "ok" or not result.get("written_decision"):
+                problem = f"report {fresh[0].parent.name} is inconsistent or has no decision ({'; '.join(result.get('errors', [])[:3]) or 'decision missing'})"
         except Exception as exc:
-            problem = f"vérification du rapport impossible ({type(exc).__name__})"
+            problem = f"report verification failed ({type(exc).__name__})"
     if problem is None:
         sys.exit(0)
 
     listed = ", ".join(changed[:8]) + (f" (+{len(changed) - 8})" if len(changed) > 8 else "")
     message = (
-        f"ui-audit-gate : des fichiers d'interface ont changé ({listed}) et {problem}. "
-        "Avant de déclarer le travail terminé, exécute le skill ui-audit-gate et termine par verify_report.py --apply --render, "
-        "ou dis clairement à l'utilisateur que l'audit n'a pas été fait et propose-le. "
-        "Si l'utilisateur a explicitement demandé de ne pas auditer, écris sa raison dans .ui-audit/SKIP."
+        f"ui-audit-gate: interface files changed ({listed}) and {problem}. "
+        "Before declaring the work done, run the ui-audit-gate skill and finish with verify_report.py --apply --render, "
+        "or tell the user clearly that the audit was not done and offer to run it. "
+        "If the user explicitly asked not to audit, write their reason in .ui-audit/SKIP."
     )
     if mode == "warn" or hook_input.get("stop_hook_active"):
         respond({"systemMessage": message})

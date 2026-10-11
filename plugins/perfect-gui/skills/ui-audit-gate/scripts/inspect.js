@@ -2,7 +2,7 @@
   const only = opts.only ? new Set(opts.only) : null;
   const wants = (name) => !only || only.has(name);
   const root = opts.scope ? document.querySelector(opts.scope) : document.body;
-  if (!root) return { error: `Portée introuvable : ${opts.scope}` };
+  if (!root) return { error: `Scope not found: ${opts.scope}` };
 
   const vw = document.documentElement.clientWidth;
   const vh = window.innerHeight;
@@ -163,7 +163,7 @@
         selector: cssPath(o.el),
         box: docBox(o.r),
         overflow_px: Math.round(Math.max(o.r.right - vw, -o.r.left)),
-        kind: o.clippedByBody ? 'contenu-coupe-par-body' : 'depasse-le-viewport',
+        kind: o.clippedByBody ? 'clipped-by-body' : 'exceeds-viewport',
       })),
     };
   }
@@ -241,19 +241,19 @@
         const fullText = el.getAttribute('title') || el.getAttribute('aria-label') || el.getAttribute('aria-describedby');
         const clamp = (cs.webkitLineClamp && cs.webkitLineClamp !== 'none') || (cs.lineClamp && cs.lineClamp !== 'none');
         const truncated = cs.textOverflow === 'ellipsis' || clamp;
-        kind = truncated ? (fullText ? 'tronque-avec-texte-complet' : 'tronque-sans-texte-complet') : 'rogne';
+        kind = truncated ? (fullText ? 'truncated-with-full-text' : 'truncated-without-full-text') : 'clipped';
       } else {
-        kind = 'deborde-de-la-boite';
+        kind = 'spills-out-of-box';
       }
       items.push({ selector: cssPath(el), text: textOf(el).slice(0, 80), box: docBox(r), kind, interactive: interactiveEl, metrics });
     }
-    const blocking = items.filter((i) => i.kind === 'rogne' || i.kind === 'deborde-de-la-boite' || (i.kind === 'tronque-sans-texte-complet' && i.interactive));
-    items.forEach((i) => { i.candidat = blocking.includes(i); });
-    items.sort((a, b) => Number(b.candidat) - Number(a.candidat));
+    const blocking = items.filter((i) => i.kind === 'clipped' || i.kind === 'spills-out-of-box' || (i.kind === 'truncated-without-full-text' && i.interactive));
+    items.forEach((i) => { i.candidate = blocking.includes(i); });
+    items.sort((a, b) => Number(b.candidate) - Number(a.candidate));
     checks['text-overflow'] = {
       controls: ['GEO-03', 'CTA-01', 'TXT-08', 'LOC-01', 'TXT-04'],
       result: blocking.length ? 'issues' : 'clean',
-      note: 'Troncature volontaire (ellipsis, line-clamp) hors action : listée, non bloquante, à juger selon le besoin de lire le texte complet.',
+      note: 'Intentional truncation (ellipsis, line-clamp) outside actions: listed, not blocking, judge against the need to read the full text.',
       items: items.slice(0, maxItems),
       total: items.length,
     };
@@ -314,19 +314,19 @@
         box: docBox(r),
         fully_in_viewport: fully,
         center_in_viewport: centerVisible,
-        state: blockedCenter ? 'centre-masque' : blockedCount ? 'partiellement-masque' : 'libre',
+        state: blockedCenter ? 'center-covered' : blockedCount ? 'partially-covered' : 'clear',
         occluder: occluder ? cssPath(occluder) : null,
         occluder_position: occluder ? layerOf(occluder) : null,
         behind_ancestor: behindAncestor,
       });
     }
-    const problems = items.filter((i) => i.state !== 'libre');
+    const problems = items.filter((i) => i.state !== 'clear');
     checks.occlusion = {
       controls: ['STK-01', 'STK-06'],
-      result: problems.some((i) => i.state === 'centre-masque') ? 'issues' : 'clean',
+      result: problems.some((i) => i.state === 'center-covered') ? 'issues' : 'clean',
       scroll_y: sy,
       items: opts.allOcclusion ? items : problems.slice(0, maxItems),
-      partial: problems.filter((i) => i.state === 'partiellement-masque').length,
+      partial: problems.filter((i) => i.state === 'partially-covered').length,
     };
   }
 
@@ -377,10 +377,10 @@
           }
         }
         const entry = { selector: cssPath(el), name: accName(el).slice(0, 60), box: docBox(r), size: [Math.round(r.width), Math.round(r.height)] };
-        if (conflict) items.push({ ...entry, kind: 'trop-petite-et-trop-proche', voisin: cssPath(conflict) });
-        else warnings.push({ ...entry, kind: 'sous-le-minimum-mais-espacee' });
+        if (conflict) items.push({ ...entry, kind: 'too-small-and-too-close', neighbor: cssPath(conflict) });
+        else warnings.push({ ...entry, kind: 'below-minimum-but-spaced' });
       } else if (touch && (r.width < touch || r.height < touch) && !inlineInText(el)) {
-        warnings.push({ selector: cssPath(el), name: accName(el).slice(0, 60), box: docBox(r), size: [Math.round(r.width), Math.round(r.height)], kind: `sous-le-seuil-tactile-${touch}px` });
+        warnings.push({ selector: cssPath(el), name: accName(el).slice(0, 60), box: docBox(r), size: [Math.round(r.width), Math.round(r.height)], kind: `below-touch-guideline-${touch}px` });
       }
     }
     checks['target-size'] = {
@@ -423,11 +423,11 @@
         items.push({
           selector: cssPath(o.k.el),
           box: docBox(o.k.r),
-          axis: axis === 'row' ? 'ligne (haut, centre, bas)' : 'colonne (gauche, centre, droite)',
-          ecart_px: Math.round(Math.min(Math.abs(o.a - ma), Math.abs(o.c - mc), Math.abs(o.b - mb))),
-          groupe: cssPath(o.k.el.parentElement),
-          taille_groupe: group.length,
-          confiance: group.length >= 3 ? 'moyenne' : 'faible',
+          axis: axis === 'row' ? 'row (top, center, bottom)' : 'column (left, center, right)',
+          offset_px: Math.round(Math.min(Math.abs(o.a - ma), Math.abs(o.c - mc), Math.abs(o.b - mb))),
+          group: cssPath(o.k.el.parentElement),
+          group_size: group.length,
+          confidence: group.length >= 3 ? 'medium' : 'low',
         });
       }
     };
@@ -460,7 +460,7 @@
       controls: ['GEO-02', 'CTA-02', 'CTA-04'],
       result: items.length ? 'issues' : 'clean',
       tolerance_px: tol,
-      note: 'Heuristique : confirmer sur la capture et par rapport au design system.',
+      note: 'Heuristic: confirm on the screenshot and against the design system.',
       items: items.slice(0, maxItems),
     };
   }
@@ -481,7 +481,7 @@
       let complex = null;
       for (let node = el; node; node = node.parentElement) {
         const ncs = getComputedStyle(node);
-        if (ncs.backgroundImage && ncs.backgroundImage !== 'none') { complex = 'image-ou-degrade'; break; }
+        if (ncs.backgroundImage && ncs.backgroundImage !== 'none') { complex = 'image-or-gradient'; break; }
         const layer = toRgba(ncs.backgroundColor);
         if (layer.a > 0) bg = blend(bg, layer);
         if (bg.a >= 0.999) break;
@@ -516,7 +516,7 @@
     checks.contrast = {
       controls: ['TXT-01'],
       result: items.length ? 'issues' : 'clean',
-      thresholds: 'Référence WCAG 2.2 SC 1.4.3 (4.5:1, 3:1 grand texte), à vérifier pour le projet',
+      thresholds: 'Reference WCAG 2.2 SC 1.4.3 (4.5:1, 3:1 large text), to confirm for the project',
       items: items.slice(0, maxItems),
       needs_assisted: assisted,
       total: items.length,
@@ -534,9 +534,9 @@
       const visibleLabel = (el.labels && [...el.labels].some((l) => visible(l) && textOf(l))) ||
         (el.getAttribute('aria-labelledby') || '').split(/\s+/).some((id) => { const n = document.getElementById(id); return n && visible(n) && textOf(n); });
       if (!name) {
-        items.push({ selector: cssPath(el), box: docBox(rectOf(el)), kind: el.placeholder ? 'placeholder-seul' : 'sans-nom-accessible' });
+        items.push({ selector: cssPath(el), box: docBox(rectOf(el)), kind: el.placeholder ? 'placeholder-only' : 'no-accessible-name' });
       } else if (!visibleLabel && el.placeholder && visible(el)) {
-        items.push({ selector: cssPath(el), box: docBox(rectOf(el)), kind: 'pas-de-label-visible', name });
+        items.push({ selector: cssPath(el), box: docBox(rectOf(el)), kind: 'no-visible-label', name });
       }
     }
     checks['form-labels'] = { controls: ['FRM-01'], result: items.length ? 'issues' : 'clean', fields: fields.length, items: items.slice(0, maxItems) };
@@ -551,13 +551,13 @@
     checks['accessible-names'] = {
       controls: ['ACC-05'],
       result: items.length ? 'issues' : 'clean',
-      note: 'Noms vides seulement ; nom approché, confirmer avec aria-snapshot.',
+      note: 'Empty names only; approximate name, confirm with aria-snapshot.',
       items: items.slice(0, maxItems),
     };
   }
 
   if (wants('form-errors')) {
-    const errorPattern = /(erreur|invalide|obligatoire|requis|incorrect|manquant|error|invalid|required|missing|must be)/i;
+    const errorPattern = /(erreur|invalide|obligatoire|requis|incorrect|manquant|error|invalid|required|missing|must be|mandatory)/i;
     const describedIds = new Set();
     for (const f of fields) {
       for (const attr of ['aria-describedby', 'aria-errormessage']) {
@@ -576,22 +576,22 @@
       const live = el.closest('[role=alert], [role=status], [aria-live]:not([aria-live=off]), output');
       if (isLinked) continue;
       if (live) {
-        announcedSummaries.push({ selector: cssPath(el), text: text.slice(0, 80), kind: 'resume-annonce', links_to_fields: !!live.querySelector('a[href^="#"]') });
+        announcedSummaries.push({ selector: cssPath(el), text: text.slice(0, 80), kind: 'announced-summary', links_to_fields: !!live.querySelector('a[href^="#"]') });
       } else {
-        items.push({ selector: cssPath(el), text: text.slice(0, 80), box: docBox(rectOf(el)), kind: 'message-non-lie-et-non-annonce' });
+        items.push({ selector: cssPath(el), text: text.slice(0, 80), box: docBox(rectOf(el)), kind: 'unlinked-unannounced-message' });
       }
     }
     for (const f of fields) {
       if (f.getAttribute('aria-invalid') === 'true') {
         const ids = [...(f.getAttribute('aria-describedby') || '').split(/\s+/), ...(f.getAttribute('aria-errormessage') || '').split(/\s+/)].filter(Boolean);
         const hasMessage = ids.some((id) => { const n = document.getElementById(id); return n && textOf(n); });
-        if (!hasMessage) items.push({ selector: cssPath(f), box: docBox(rectOf(f)), kind: 'aria-invalid-sans-message' });
+        if (!hasMessage) items.push({ selector: cssPath(f), box: docBox(rectOf(f)), kind: 'aria-invalid-without-message' });
       }
     }
     checks['form-errors'] = {
       controls: ['FRM-03', 'ACC-06'],
       result: items.length ? 'issues' : 'clean',
-      note: 'Utile après une action qui déclenche une erreur. Proximité et clarté du message : revue visuelle.',
+      note: 'Useful after an action that triggers an error. Message proximity and clarity: visual review.',
       invalid_fields: fields.filter((f) => f.getAttribute('aria-invalid') === 'true').length,
       items: items.slice(0, maxItems),
       announced_summaries: announcedSummaries,
@@ -602,22 +602,22 @@
     const items = [];
     for (const img of root.querySelectorAll('img')) {
       if (!img.hasAttribute('alt') && !img.closest('[aria-hidden=true]') && img.getAttribute('role') !== 'presentation') {
-        items.push({ selector: cssPath(img), kind: 'alt-absent', src: (img.currentSrc || img.src || '').slice(0, 160) });
+        items.push({ selector: cssPath(img), kind: 'missing-alt', src: (img.currentSrc || img.src || '').slice(0, 160) });
       }
       if (img.complete && img.naturalWidth === 0 && (img.currentSrc || img.src)) {
-        items.push({ selector: cssPath(img), kind: 'image-cassee', src: (img.currentSrc || img.src || '').slice(0, 160) });
+        items.push({ selector: cssPath(img), kind: 'broken-image', src: (img.currentSrc || img.src || '').slice(0, 160) });
       } else if (img.naturalWidth && visible(img)) {
         const r = rectOf(img);
         const fit = getComputedStyle(img).objectFit;
         const natural = img.naturalWidth / img.naturalHeight;
         const shown = r.width / r.height;
         if (['fill', ''].includes(fit) && Math.abs(natural - shown) / natural > 0.05) {
-          items.push({ selector: cssPath(img), kind: 'image-deformee', ratio_naturel: Math.round(natural * 100) / 100, ratio_affiche: Math.round(shown * 100) / 100, box: docBox(r) });
+          items.push({ selector: cssPath(img), kind: 'distorted-image', natural_ratio: Math.round(natural * 100) / 100, displayed_ratio: Math.round(shown * 100) / 100, box: docBox(r) });
         }
       }
     }
     for (const el of root.querySelectorAll('[role=img]')) {
-      if (!accName(el) && !el.closest('[aria-hidden=true]')) items.push({ selector: cssPath(el), kind: 'role-img-sans-nom' });
+      if (!accName(el) && !el.closest('[aria-hidden=true]')) items.push({ selector: cssPath(el), kind: 'role-img-without-name' });
     }
     checks.images = { controls: ['COL-05', 'COL-04'], result: items.length ? 'issues' : 'clean', items: items.slice(0, maxItems) };
   }
@@ -629,11 +629,11 @@
     const items = [];
     let previous = 0;
     for (const h of heads) {
-      if (previous && h.level > previous + 1) items.push({ selector: cssPath(h.el), text: textOf(h.el).slice(0, 60), kind: `saut-h${previous}-vers-h${h.level}` });
+      if (previous && h.level > previous + 1) items.push({ selector: cssPath(h.el), text: textOf(h.el).slice(0, 60), kind: `skip-h${previous}-to-h${h.level}` });
       previous = h.level;
     }
     const h1 = heads.filter((h) => h.level === 1).length;
-    if (h1 === 0) items.push({ kind: 'aucun-h1' });
+    if (h1 === 0) items.push({ kind: 'no-h1' });
     checks.headings = {
       controls: ['TXT-02'],
       result: items.length ? 'issues' : 'clean',
@@ -645,9 +645,9 @@
 
   if (wants('document')) {
     const items = [];
-    if (!document.title.trim()) items.push({ kind: 'titre-vide' });
+    if (!document.title.trim()) items.push({ kind: 'empty-title' });
     const lang = document.documentElement.getAttribute('lang');
-    if (!lang) items.push({ kind: 'lang-absent' });
+    if (!lang) items.push({ kind: 'missing-lang' });
     checks.document = { controls: ['NAV-01', 'ACC-12'], result: items.length ? 'issues' : 'clean', title: document.title, lang, items };
   }
 
@@ -659,7 +659,7 @@
     });
     const items = [];
     if (mains !== 1) items.push({ kind: `main-${mains}` });
-    if (!skip) items.push({ kind: 'lien-evitement-absent' });
+    if (!skip) items.push({ kind: 'missing-skip-link' });
     checks.landmarks = { controls: ['ACC-10'], result: items.length ? 'issues' : 'clean', items };
   }
 

@@ -80,8 +80,8 @@
     const name = nameOf(el);
     const form = el.form || el.closest('form');
     const formAction = form ? (form.getAttribute('action') || '') : '';
-    let risk = 'sur';
-    if (DESTRUCTIVE.test(name) || DESTRUCTIVE.test(el.getAttribute('aria-label') || '') || DESTRUCTIVE.test(formAction)) risk = 'destructif';
+    let risk = 'safe';
+    if (DESTRUCTIVE.test(name) || DESTRUCTIVE.test(el.getAttribute('aria-label') || '') || DESTRUCTIVE.test(formAction)) risk = 'destructive';
     controls.push({
       selector, kind, name, risk,
       setting: SETTING.test(`${name} ${el.getAttribute('name') || ''} ${el.id || ''}`),
@@ -98,7 +98,7 @@
     try { url = new URL(raw, location.href); } catch (e) { continue; }
     if (['mailto:', 'tel:', 'sms:'].includes(url.protocol)) continue;
     if (a.hasAttribute('download') || /\.(pdf|zip|docx?|xlsx?|pptx?|csv|dmg|exe|apk)$/i.test(url.pathname)) {
-      add(a, 'telechargement', { risk: 'telechargement' });
+      add(a, 'download', { risk: 'download' });
       continue;
     }
     if (url.origin !== origin) {
@@ -111,7 +111,7 @@
     }
     const samePage = url.pathname === location.pathname && url.search === location.search && url.hash;
     if (samePage || a.getAttribute('role') === 'button' || a.hasAttribute('aria-expanded') || a.getAttribute('role') === 'tab') {
-      add(a, a.getAttribute('role') === 'tab' ? 'onglet' : (a.hasAttribute('aria-expanded') ? 'bascule' : 'ancre'));
+      add(a, a.getAttribute('role') === 'tab' ? 'tab' : (a.hasAttribute('aria-expanded') ? 'toggle' : 'anchor'));
     } else {
       links.push({ href: url.origin + url.pathname + url.search, external: false, name: nameOf(a) });
     }
@@ -121,15 +121,15 @@
     if (el.disabled) continue;
     const role = el.getAttribute('role');
     let kind = 'action';
-    if (el.tagName === 'SUMMARY') kind = 'bascule';
-    else if (role === 'tab') kind = 'onglet';
-    else if (role === 'switch') kind = 'interrupteur';
-    else if (role && role.startsWith('menuitem')) kind = 'element-menu';
+    if (el.tagName === 'SUMMARY') kind = 'toggle';
+    else if (role === 'tab') kind = 'tab';
+    else if (role === 'switch') kind = 'switch';
+    else if (role && role.startsWith('menuitem')) kind = 'menu-item';
     else if (role === 'option') kind = 'option';
-    else if (role === 'combobox') kind = 'liste';
-    else if (el.hasAttribute('aria-expanded') || el.hasAttribute('aria-haspopup') || el.hasAttribute('popovertarget') || el.hasAttribute('aria-controls')) kind = 'bascule';
-    else if (el.type === 'submit' && (el.form || el.closest('form'))) kind = 'soumission';
-    else if (el.type === 'reset') kind = 'reinitialisation';
+    else if (role === 'combobox') kind = 'select';
+    else if (el.hasAttribute('aria-expanded') || el.hasAttribute('aria-haspopup') || el.hasAttribute('popovertarget') || el.hasAttribute('aria-controls')) kind = 'toggle';
+    else if (el.type === 'submit' && (el.form || el.closest('form'))) kind = 'submit';
+    else if (el.type === 'reset') kind = 'reset';
     add(el, kind, {
       expanded: el.getAttribute('aria-expanded'),
       haspopup: el.getAttribute('aria-haspopup'),
@@ -160,7 +160,7 @@
   for (const el of document.querySelectorAll(fieldSelector)) {
     if (el.disabled || el.readOnly) continue;
     const field = fieldInfo(el);
-    const kind = field.type === 'checkbox' ? 'case' : field.type === 'radio' ? 'radio' : field.tag === 'select' ? 'liste' : field.type === 'range' ? 'curseur' : field.type === 'file' ? 'fichier' : 'champ';
+    const kind = field.type === 'checkbox' ? 'checkbox' : field.type === 'radio' ? 'radio' : field.tag === 'select' ? 'select' : field.type === 'range' ? 'range' : field.type === 'file' ? 'file' : 'field';
     add(el, kind, { field, in_form: !!(el.form || el.closest('form')) });
   }
 
@@ -179,7 +179,7 @@
       fields,
       submit: submit ? selectorFor(submit) : null,
       submit_name: submitName,
-      risk: DESTRUCTIVE.test(`${submitName} ${name} ${action}`) ? 'destructif' : (method === 'get' ? 'sur' : 'mutation'),
+      risk: DESTRUCTIVE.test(`${submitName} ${name} ${action}`) ? 'destructive' : (method === 'get' ? 'safe' : 'mutation'),
       visible: isVisible(form),
     };
   });

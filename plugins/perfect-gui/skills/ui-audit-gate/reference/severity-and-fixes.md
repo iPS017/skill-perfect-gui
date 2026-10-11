@@ -1,72 +1,72 @@
-# Sévérité, corrections et variantes
+# Severity, fixes and variants
 
-## Sévérité (impact sur l'utilisateur)
+## Severity (impact on the user)
 
-| Niveau | Définition | Exemples |
+| Level | Definition | Examples |
 |---|---|---|
-| `critique` | Empêche une tâche essentielle pour tout ou partie des utilisateurs, sans contournement raisonnable, ou risque de préjudice (perte de données, action irréversible involontaire, clignotement dangereux) | Bouton « Payer » masqué par une bannière, focus piégé, parcours impossible au clavier |
-| `majeure` | Gêne fortement la tâche, provoque des erreurs fréquentes ou exclut un groupe, avec un contournement coûteux | Libellé de bouton rogné qui rend l'action ambiguë, erreur de formulaire non annoncée |
-| `moderee` | Ralentit ou trouble sans bloquer, contournement simple | Libellé ambigu, alignement visiblement décalé, état vide sans guidance |
-| `mineure` | Cosmétique ou cohérence, sans impact mesurable sur la tâche | Espacement hors échelle de 2 px, icône décalée d'1 px |
+| `critical` | Prevents an essential task for all or some users, with no reasonable workaround, or risks harm (data loss, unintended irreversible action, dangerous flashing) | "Pay" button hidden by a banner, focus trap, user flow impossible with the keyboard |
+| `major` | Severely hinders the task, causes frequent errors or excludes a group, with a costly workaround | Clipped button label that makes the action ambiguous, unannounced form error |
+| `moderate` | Slows down or confuses without blocking, simple workaround | Ambiguous label, visibly offset alignment, empty state without guidance |
+| `minor` | Cosmetic or consistency issue, with no measurable impact on the task | Spacing 2 px off the scale, icon offset by 1 px |
 
-Facteurs d'ajustement : fréquence (écran principal ou rare), étendue (une instance ou un composant partagé), contournement, population touchée. Un défaut visuel peut être critique s'il masque une action essentielle.
+Adjustment factors: frequency (main screen or rare), extent (one instance or a shared component), workaround, affected population. A visual defect can be critical if it hides an essential action.
 
-## Quatre champs distincts
+## Four distinct fields
 
-| Champ | Valeurs | Sens |
+| Field | Values | Meaning |
 |---|---|---|
-| `severite` | critique, majeure, moderee, mineure | Impact |
-| `priorite` | P1 (avant validation), P2 (avant mise en production), P3 (backlog) | Ordre de traitement |
-| `confiance` | elevee (reproduit et preuve structurelle), moyenne (reproduit, cause supposée), faible (observé une fois ou jugement heuristique) | Solidité du diagnostic |
-| `effort` | S, M, L | Coût estimé de la correction |
+| `severity` | critical, major, moderate, minor | Impact |
+| `priority` | P1 (before validation), P2 (before production release), P3 (backlog) | Order of handling |
+| `confidence` | high (reproduced, with structural evidence), medium (reproduced, presumed cause), low (observed once or heuristic judgment) | Strength of the diagnosis |
+| `effort` | S, M, L | Estimated cost of the fix |
 
 ## Nature
 
-- `[EXIGENCE]` : norme applicable, critère d'acceptation, design system, contrat fonctionnel. Peut bloquer.
-- `[HYPOTHÈSE]` : plausible, non démontré. À vérifier ou à assumer explicitement.
-- `[PRÉFÉRENCE]` : jugement esthétique. Ne bloque jamais seul.
+- `[REQUIREMENT]` covers an applicable standard, an acceptance criterion, the design system or a functional contract. Can block.
+- `[HYPOTHESIS]` is plausible but not demonstrated. To be verified or explicitly assumed.
+- `[PREFERENCE]` is an aesthetic judgment. Never blocks on its own.
 
-## Fiche de correction (`report.json > corrections[]`)
+## Fix record (`report.json > fixes[]`)
 
 ```json
 {
-  "defauts": ["DEF-012"],
-  "cause_probable": "Le token --space-btn-x est passé de 16 à 8 px et .btn n'a pas de min-width",
-  "cause_etablie": true,
-  "solution": "Restaurer min-width dans le composant Button, sans toucher au token utilisé ailleurs",
-  "type": "cause_commune",
-  "fichiers": ["src/components/Button.css"],
-  "composants_affectes": ["Button", "Toolbar", "DialogFooter"],
-  "instances_reverifiees": 14,
-  "benefice": "Libellés lisibles dans toutes les langues",
-  "risques": "Boutons plus larges, retour à la ligne possible dans DialogFooter à 320 px",
-  "non_regression": ["CTA-01@320", "CTA-01@pseudo", "GEO-06@DialogFooter", "DS-05@rayon"],
-  "autorisation": "dans_perimetre"
+  "findings": ["DEF-012"],
+  "probable_cause": "The --space-btn-x token went from 16 to 8 px and .btn has no min-width",
+  "cause_established": true,
+  "solution": "Restore min-width in the Button component, without touching the token used elsewhere",
+  "type": "common_cause",
+  "files": ["src/components/Button.css"],
+  "affected_components": ["Button", "Toolbar", "DialogFooter"],
+  "instances_rechecked": 14,
+  "benefit": "Labels readable in every language",
+  "risks": "Wider buttons, possible line wrap in DialogFooter at 320 px",
+  "non_regression": ["CTA-01@320", "CTA-01@pseudo", "GEO-06@DialogFooter", "DS-05@radius"],
+  "authorization": "in_scope"
 }
 ```
 
-`type` vaut `cause_commune`, `local` ou `palliatif_declare`. `autorisation` vaut `dans_perimetre` ou `proposition_seulement`.
+`type` is `common_cause`, `local` or `declared_workaround`. `authorization` is `in_scope` or `proposal_only`.
 
-Anti-patterns à refuser ou à déclarer comme palliatifs :
-- `overflow: hidden` ou `text-overflow: ellipsis` sur un libellé d'action sans accès au texte complet ;
-- `z-index: 9999` sans analyse des contextes d'empilement (`transform`, `opacity < 1`, `filter`, `isolation`, `position` avec `z-index`) ;
-- réduire la taille de police d'un composant partagé pour faire tenir un libellé (risque sur les cibles et la lisibilité) ;
-- `outline: none` sans indicateur de focus de remplacement ;
-- largeur fixe en pixels sur un conteneur de texte traduit.
+Anti-patterns to refuse or to declare as workarounds:
+- `overflow: hidden` or `text-overflow: ellipsis` on an action label without access to the full text;
+- `z-index: 9999` without analyzing the stacking contexts (`transform`, `opacity < 1`, `filter`, `isolation`, `position` with `z-index`);
+- reducing the font size of a shared component to make a label fit (risk for targets and readability);
+- `outline: none` without a replacement focus indicator;
+- a fixed pixel width on a container of translated text.
 
-## Variantes
+## Variants
 
-À proposer seulement s'il existe un arbitrage réel : plusieurs solutions valides avec des compromis différents, ou un conflit entre contraintes. Deux ou trois au maximum.
+Only offer them when there is a real trade-off: several valid solutions with different compromises, or a conflict between constraints. Two or three at most.
 
-| Critère | Variante A | Variante B | Variante C |
+| Criterion | Variant A | Variant B | Variant C |
 |---|---|---|---|
-| Compréhension | | | |
-| Efficacité (étapes, temps) | | | |
-| Accessibilité | | | |
-| Cohérence avec le design system | | | |
-| Complexité d'implémentation | | | |
-| Contraintes métier et techniques | | | |
-| Qualité visuelle `[PRÉFÉRENCE]` | | | |
-| Incertitudes | | | |
+| Comprehension | | | |
+| Efficiency (steps, time) | | | |
+| Accessibility | | | |
+| Consistency with the design system | | | |
+| Implementation complexity | | | |
+| Business and technical constraints | | | |
+| Visual quality `[PREFERENCE]` | | | |
+| Uncertainties | | | |
 
-Joindre une capture ou un prototype rendu si le coût est raisonnable (une branche ou un fichier temporaire, capturé avec `capture.py`). Recommander une option avec sa justification. Préciser que l'évaluation est heuristique et ne vaut pas un test avec des utilisateurs.
+Attach a screenshot or a rendered prototype if the cost is reasonable (a branch or a temporary file, captured with `capture.py`). Recommend one option with its justification. State that the evaluation is heuristic and is no substitute for testing with users.

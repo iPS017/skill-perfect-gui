@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Rejoue toute la suite de scènes (scenes.json) sur chaque viewport, contrôle chaque étape et
-compare les captures aux références. C'est la revue à lancer avant chaque republication.
+"""Replay the whole scene suite (scenes.json) on each viewport, check every step and
+compare screenshots with the baselines. This is the review to run before each republication.
 
-Modes :
-  --mode baseline : enregistre les captures de référence (première fois, ou après acceptation)
-  --mode review   : rejoue tout, compare aux références, détecte les anomalies, écrit last-review.json
+Modes:
+  --mode baseline : record the baseline screenshots (first time, or after acceptance)
+  --mode review   : replay everything, compare with baselines, detect anomalies, write last-review.json
 
-Après une revue, accepter des changements visuels voulus :
-  python3 play_scenarios.py --suite ui-scenes --accept S-0003,S-0010     (ou --accept all)
-Accepter une anomalie connue (sur décision explicite de l'utilisateur) :
-  python3 play_scenarios.py --suite ui-scenes --accept-anomaly CLE --reason "..." --accepted-by "nom"
+After a review, accept intended visual changes:
+  python3 play_scenarios.py --suite ui-scenes --accept S-0003,S-0010     (or --accept all)
+Accept a known anomaly (on explicit user decision):
+  python3 play_scenarios.py --suite ui-scenes --accept-anomaly KEY --reason "..." --accepted-by "name"
 
-Exemple :
+Example:
   python3 play_scenarios.py --suite ui-scenes --url http://localhost:3000 --viewports mobile,laptop --workers 4
 """
 import argparse
@@ -36,22 +36,22 @@ from _common import (
 FAST_CHECKS = ["horizontal-overflow", "text-overflow", "occlusion", "target-size", "contrast", "form-errors", "alignment", "images", "accessible-names"]
 BLOCKING = {
     "horizontal-overflow", "text-overflow", "occlusion", "contrast", "form-errors", "accessible-names",
-    "action-sans-effet", "erreur-javascript", "defilement-bloque", "theme-non-adapte", "contenu-non-traduit", "scene-en-erreur",
+    "dead-click", "javascript-error", "scroll-locked", "theme-not-adapted", "untranslated-content", "scene-error",
 }
 SEVERITY = {
-    "occlusion": "critique", "horizontal-overflow": "majeure", "text-overflow": "majeure", "contrast": "majeure",
-    "form-errors": "majeure", "accessible-names": "majeure", "action-sans-effet": "majeure", "erreur-javascript": "majeure",
-    "defilement-bloque": "majeure", "theme-non-adapte": "majeure", "contenu-non-traduit": "majeure", "scene-en-erreur": "majeure",
-    "target-size": "moderee", "images": "moderee", "erreur-console": "moderee", "fermeture-echap-inoperante": "moderee",
-    "police-non-chargee": "moderee", "lang-non-mis-a-jour": "moderee", "alignment": "mineure", "incoherence-style": "mineure",
-    "controle-indisponible-a-ce-viewport": "info", "scene-obsolete": "moderee", "theme-sombre-ignore": "info", "requete-bloquee": "info", "navigation-externe": "info",
+    "occlusion": "critical", "horizontal-overflow": "major", "text-overflow": "major", "contrast": "major",
+    "form-errors": "major", "accessible-names": "major", "dead-click": "major", "javascript-error": "major",
+    "scroll-locked": "major", "theme-not-adapted": "major", "untranslated-content": "major", "scene-error": "major",
+    "target-size": "moderate", "images": "moderate", "console-error": "moderate", "escape-does-not-close": "moderate",
+    "font-not-loaded": "moderate", "lang-not-updated": "moderate", "alignment": "minor", "style-inconsistency": "minor",
+    "control-unavailable-at-viewport": "info", "stale-scene": "moderate", "dark-scheme-ignored": "info", "blocked-request": "info", "external-navigation": "info",
 }
 CONTROL_IDS = {
     "horizontal-overflow": "GEO-01", "text-overflow": "GEO-03", "occlusion": "STK-01", "target-size": "CTA-03", "contrast": "TXT-01",
-    "form-errors": "FRM-03", "alignment": "GEO-02", "images": "COL-05", "accessible-names": "ACC-05", "action-sans-effet": "PAR-08",
-    "erreur-javascript": "ROB-01", "erreur-console": "ROB-01", "defilement-bloque": "STK-08", "theme-non-adapte": "COL-03",
-    "contenu-non-traduit": "LOC-02", "lang-non-mis-a-jour": "ACC-12", "police-non-chargee": "TXT-05", "incoherence-style": "DS-03",
-    "fermeture-echap-inoperante": "STK-03", "controle-indisponible-a-ce-viewport": "NAV-06", "scene-en-erreur": "PAR-01", "scene-obsolete": "PAR-01",
+    "form-errors": "FRM-03", "alignment": "GEO-02", "images": "COL-05", "accessible-names": "ACC-05", "dead-click": "PAR-08",
+    "javascript-error": "ROB-01", "console-error": "ROB-01", "scroll-locked": "STK-08", "theme-not-adapted": "COL-03",
+    "untranslated-content": "LOC-02", "lang-not-updated": "ACC-12", "font-not-loaded": "TXT-05", "style-inconsistency": "DS-03",
+    "escape-does-not-close": "STK-03", "control-unavailable-at-viewport": "NAV-06", "scene-error": "PAR-01", "stale-scene": "PAR-01",
 }
 
 EFFECT_START_JS = """
@@ -75,7 +75,7 @@ def anomaly_key(kind, scene_id, viewport, selector):
 
 def scene_config(viewport, scene, args):
     cfg = build_config(viewport, args)
-    environment = scene.get("environnement") or {}
+    environment = scene.get("environment") or {}
     if environment.get("theme"):
         cfg["theme"] = environment["theme"]
     if environment.get("locale"):
@@ -110,7 +110,7 @@ def snapshot(page, scene, viewport_id, number, label, out_dir, inspect_js, consi
     inspection = page.evaluate(inspect_js, {"only": FAST_CHECKS, "minTarget": args.min_target, "touchTarget": 0, "alignTolerance": 1})
     consistency = page.evaluate(consistency_js)
     expanded = None
-    if last_toggle and label == "ferme-par-echap":
+    if last_toggle and label == "closed-by-escape":
         expanded = page.evaluate("(s) => { const el = document.querySelector(s); return el ? el.getAttribute('aria-expanded') : null; }", last_toggle)
     page.evaluate("([x, y]) => window.scrollTo(x, y)", scroll)
     shot = out_dir / viewport_id / f"{scene['id']}-{number}.png"
@@ -119,11 +119,11 @@ def snapshot(page, scene, viewport_id, number, label, out_dir, inspect_js, consi
     page.screenshot(path=str(shot), full_page=True, scale="css", animations="disabled", mask=masks, mask_color="#ff00ff")
     checks = {}
     for name, check in inspection.get("checks", {}).items():
-        if name == "form-errors" and not label.startswith("apres-envoi"):
+        if name == "form-errors" and not label.startswith("after-submit"):
             continue
-        items = [i for i in check.get("items", []) if i.get("candidat", True)]
+        items = [i for i in check.get("items", []) if i.get("candidate", True)]
         if name == "occlusion":
-            items = [i for i in items if i.get("state") == "centre-masque"]
+            items = [i for i in items if i.get("state") == "center-covered"]
         if check.get("result") == "issues" and items:
             checks[name] = items[:10]
     return {
@@ -178,10 +178,10 @@ def play_scene(browser, scene, viewport, args, inspect_js, consistency_js, out_d
         message = str(exc).strip().splitlines()[0][:300] if str(exc).strip() else type(exc).__name__
         timeout = "Timeout" in type(exc).__name__ or "Timeout" in message
         interaction = isinstance(action, dict) and any(k in action for k in ("click", "click_effect", "fill", "select", "check", "hover", "focus"))
-        result["status"] = "indisponible" if timeout and interaction else "erreur"
+        result["status"] = "unavailable" if timeout and interaction else "error"
         result["error"] = {"step": step, "action": action, "message": message, "timeout": timeout}
         try:
-            shot = out_dir / viewport["id"] / f"{scene['id']}-erreur.png"
+            shot = out_dir / viewport["id"] / f"{scene['id']}-error.png"
             shot.parent.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=str(shot), scale="css")
             result["error"]["screenshot"] = str(shot)
@@ -218,7 +218,7 @@ def run_worker(args):
             try:
                 results.append(play_scene(browser, scene, viewport, args, inspect_js, consistency_js, out_dir))
             except Exception as exc:
-                results.append({"scene": scene["id"], "viewport": viewport["id"], "status": "erreur", "error": {"message": f"{type(exc).__name__}: {str(exc)[:200]}"}, "snapshots": [], "effects": []})
+                results.append({"scene": scene["id"], "viewport": viewport["id"], "status": "error", "error": {"message": f"{type(exc).__name__}: {str(exc)[:200]}"}, "snapshots": [], "effects": []})
             write_json(args.worker_out, {"results": results})
         browser.close()
     write_json(args.worker_out, {"results": results})
@@ -230,7 +230,7 @@ def select_scenes(scenes, args):
         scenes = [s for s in scenes if s["id"] in wanted]
     if args.categories:
         wanted = set(args.categories.split(","))
-        scenes = [s for s in scenes if s["categorie"] in wanted]
+        scenes = [s for s in scenes if s["category"] in wanted]
     return scenes
 
 
@@ -263,46 +263,46 @@ def analyse(results, suite, args, run_dir, suite_dir):
             return
         scene = scenes.get(result["scene"], {})
         anomalies[key] = {
-            "key": key, "type": kind, "controle": CONTROL_IDS.get(kind), "severite": SEVERITY.get(kind, "moderee"),
-            "bloquant": kind in BLOCKING and key not in known, "connue": known.get(key),
-            "scene": result["scene"], "titre_scene": scene.get("titre"), "viewport": result["viewport"], "config_id": result.get("config_id"),
-            "selecteur": selector, "details": details, "capture": screenshot, "etape_capture": snapshot_n,
-            "reproduction": {"page": scene.get("page"), "environnement": scene.get("environnement"), "actions": scene.get("actions")},
+            "key": key, "type": kind, "control": CONTROL_IDS.get(kind), "severity": SEVERITY.get(kind, "moderate"),
+            "blocking": kind in BLOCKING and key not in known, "known": known.get(key),
+            "scene": result["scene"], "scene_title": scene.get("title"), "viewport": result["viewport"], "config_id": result.get("config_id"),
+            "selector": selector, "details": details, "screenshot": screenshot, "snapshot_step": snapshot_n,
+            "reproduction": {"page": scene.get("page"), "environment": scene.get("environment"), "actions": scene.get("actions")},
             "_boxes": boxes or [],
         }
 
     statuses = defaultdict(set)
     for result in results:
         statuses[result["scene"]].add(result["status"])
-    unavailable_everywhere = {sid: values == {"indisponible"} for sid, values in statuses.items()}
+    unavailable_everywhere = {sid: values == {"unavailable"} for sid, values in statuses.items()}
     page_texts = {}
     for result in results:
         scene = scenes.get(result["scene"], {})
-        if scene.get("categorie") == "page" and result["snapshots"]:
+        if scene.get("category") == "page" and result["snapshots"]:
             page_texts[(scene.get("page"), result["viewport"])] = (set(result["snapshots"][0]["consistency"]["texts"]), result["snapshots"][0]["consistency"]["lang"])
 
     for result in results:
         scene = scenes.get(result["scene"], {})
-        if result["status"] in ("erreur", "indisponible"):
+        if result["status"] in ("error", "unavailable"):
             error = result.get("error", {})
             action = error.get("action") or {}
-            kind = "controle-indisponible-a-ce-viewport" if result["status"] == "indisponible" else "scene-en-erreur"
-            if kind == "controle-indisponible-a-ce-viewport" and unavailable_everywhere.get(result["scene"]):
-                kind = "scene-obsolete"
+            kind = "control-unavailable-at-viewport" if result["status"] == "unavailable" else "scene-error"
+            if kind == "control-unavailable-at-viewport" and unavailable_everywhere.get(result["scene"]):
+                kind = "stale-scene"
             add(kind, result, json.dumps(action, ensure_ascii=False)[:160], error.get("message"), screenshot=error.get("screenshot"))
         for message in result.get("js_errors", []):
-            add("erreur-javascript", result, message[:80], message)
+            add("javascript-error", result, message[:80], message)
         for message in result.get("console_errors", []):
             if result.get("blocked_requests") and "ERR_FAILED" in message:
                 continue
-            add("erreur-console", result, message[:80], message)
+            add("console-error", result, message[:80], message)
         for request in result.get("blocked_requests", []):
-            add("requete-bloquee", result, f"{request['method']} {request['url'][:100]}", "Requête non GET bloquée par la garde (utiliser --allow-mutations en environnement de test)")
+            add("blocked-request", result, f"{request['method']} {request['url'][:100]}", "Non-GET request blocked by the guard (use --allow-mutations in a test environment)")
         if result.get("external_navigation"):
-            add("navigation-externe", result, result["external_navigation"][:120], "La scène a quitté le site")
+            add("external-navigation", result, result["external_navigation"][:120], "The scene left the site")
         for effect in result.get("effects", []):
             if not effect["effect"]:
-                add("action-sans-effet", result, effect["selector"], "Aucun changement du DOM, de l'URL, du défilement ni requête après le clic (bouton mort ou retour visuel absent). Confiance moyenne : vérifier canvas, presse-papiers, son.")
+                add("dead-click", result, effect["selector"], "No DOM, URL or scroll change and no request after the click (dead button or missing visual feedback). Medium confidence: check canvas, clipboard, sound.")
         for shot in result["snapshots"]:
             reference_texts = page_texts.get((scene.get("page"), result["viewport"]), (set(), None))[0]
             for check, items in shot["checks"].items():
@@ -312,34 +312,34 @@ def analyse(results, suite, args, run_dir, suite_dir):
                     add(check, result, item.get("selector") or item.get("kind"), {k: v for k, v in item.items() if k not in ("box",)}, shot["n"], shot["screenshot"], [item["box"]] if item.get("box") else [])
             consistency = shot["consistency"]
             if consistency.get("scroll_locked"):
-                add("defilement-bloque", result, "body", f"Défilement bloqué sans dialogue ouvert (étape « {shot['label']} »)", shot["n"], shot["screenshot"])
+                add("scroll-locked", result, "body", f"Scroll locked without an open dialog (step \"{shot['label']}\")", shot["n"], shot["screenshot"])
             for island in consistency["theme"].get("light_islands", []):
-                add("theme-non-adapte", result, island["selector"], "Grande zone claire dans une page sombre", shot["n"], shot["screenshot"], [island["box"]])
-            if (scene.get("environnement") or {}).get("theme") == "dark" and suite.get("theme_sombre_css") and not consistency["theme"]["page_dark"]:
-                add("theme-sombre-ignore", result, "body", "Le site déclare un thème sombre mais la page reste claire", shot["n"], shot["screenshot"])
+                add("theme-not-adapted", result, island["selector"], "Large light area in a dark page", shot["n"], shot["screenshot"], [island["box"]])
+            if (scene.get("environment") or {}).get("theme") == "dark" and suite.get("dark_scheme_css") and not consistency["theme"]["page_dark"]:
+                add("dark-scheme-ignored", result, "body", "The site declares a dark theme but the page stays light", shot["n"], shot["screenshot"])
             for font in consistency.get("fonts", []):
                 if font.get("webfont") and font.get("loaded") is False:
-                    add("police-non-chargee", result, font["family"], f"Police web déclarée mais non chargée : rendu de secours ({font['sample']})", shot["n"], shot["screenshot"])
+                    add("font-not-loaded", result, font["family"], f"Web font declared but not loaded: fallback rendering ({font['sample']})", shot["n"], shot["screenshot"])
             if shot.get("expanded_after_escape") == "true":
-                add("fermeture-echap-inoperante", result, scene["actions"][-3].get("click_effect") if len(scene["actions"]) >= 3 else None, "aria-expanded reste true après Échap", shot["n"], shot["screenshot"])
-            changes_language = (scene.get("environnement") or {}).get("locale") or "traduction" in scene.get("verifie", []) or (scene.get("categorie") == "reglage" and consistency.get("lang"))
-            reference = page_texts.get((scene.get("page", "").split("?")[0] if scene.get("categorie") == "parametre-url" else scene.get("page"), result["viewport"]))
-            if changes_language and reference and scene.get("categorie") != "page":
+                add("escape-does-not-close", result, scene["actions"][-3].get("click_effect") if len(scene["actions"]) >= 3 else None, "aria-expanded stays true after Escape", shot["n"], shot["screenshot"])
+            changes_language = (scene.get("environment") or {}).get("locale") or "translation" in scene.get("checks", []) or (scene.get("category") == "setting" and consistency.get("lang"))
+            reference = page_texts.get((scene.get("page", "").split("?")[0] if scene.get("category") == "url-param" else scene.get("page"), result["viewport"]))
+            if changes_language and reference and scene.get("category") != "page":
                 texts = set(consistency["texts"])
                 ref_texts, ref_lang = reference
-                language_changed = consistency.get("lang") != ref_lang or (scene.get("environnement") or {}).get("locale")
+                language_changed = consistency.get("lang") != ref_lang or (scene.get("environment") or {}).get("locale")
                 if language_changed and len(texts) >= 8:
                     same = len(texts & ref_texts) / len(texts)
                     if same > 0.5 and consistency.get("lang") != ref_lang:
-                        add("contenu-non-traduit", result, f"lang={consistency.get('lang')}", f"{round(same * 100)} % des textes identiques à la langue d'origine ({ref_lang})", shot["n"], shot["screenshot"])
-                if scene.get("categorie") == "reglage" and consistency.get("lang") == ref_lang and len(texts & ref_texts) / max(1, len(texts)) < 0.3:
-                    add("lang-non-mis-a-jour", result, "html[lang]", f"Les textes ont changé de langue mais lang vaut toujours {ref_lang}", shot["n"], shot["screenshot"])
+                        add("untranslated-content", result, f"lang={consistency.get('lang')}", f"{round(same * 100)}% of texts identical to the original language ({ref_lang})", shot["n"], shot["screenshot"])
+                if scene.get("category") == "setting" and consistency.get("lang") == ref_lang and len(texts & ref_texts) / max(1, len(texts)) < 0.3:
+                    add("lang-not-updated", result, "html[lang]", f"Texts changed language but lang is still {ref_lang}", shot["n"], shot["screenshot"])
 
     styles = defaultdict(lambda: defaultdict(dict))
     reference_viewport = next((r["viewport"] for r in results if r["viewport"] in ("laptop", "desktop-md", "desktop")), results[0]["viewport"] if results else None)
     for result in results:
         scene = scenes.get(result["scene"], {})
-        if result["viewport"] != reference_viewport or scene.get("environnement") or scene.get("categorie") == "reglage":
+        if result["viewport"] != reference_viewport or scene.get("environment") or scene.get("category") == "setting":
             continue
         for shot in result["snapshots"]:
             for role, entries in shot["consistency"]["styles"].items():
@@ -360,7 +360,7 @@ def analyse(results, suite, args, run_dir, suite_dir):
                     continue
                 for (page, selector), (sig, result, shot) in instances.items():
                     if sig[prop] == value:
-                        add("incoherence-style", result, selector, f"{role} : {prop} = {value} alors que {dominant_count}/{len(instances)} utilisent {dominant} (page {page})", shot["n"], shot["screenshot"])
+                        add("style-inconsistency", result, selector, f"{role}: {prop} = {value} while {dominant_count}/{len(instances)} use {dominant} (page {page})", shot["n"], shot["screenshot"])
                         style_findings.append(selector)
 
     baseline_dir = suite_dir / "baseline"
@@ -374,62 +374,62 @@ def analyse(results, suite, args, run_dir, suite_dir):
                 continue
             diff = compare(reference, shot["screenshot"], run_dir / "diff" / relative, args.diff_tolerance)
             if diff["size_changed"] or diff["ratio"] > args.max_diff_ratio:
-                changes.append({"scene": result["scene"], "viewport": result["viewport"], "capture": str(relative), "diff": str(run_dir / "diff" / relative), **diff,
-                                "titre_scene": scenes.get(result["scene"], {}).get("titre")})
+                changes.append({"scene": result["scene"], "viewport": result["viewport"], "screenshot": str(relative), "diff": str(run_dir / "diff" / relative), **diff,
+                                "scene_title": scenes.get(result["scene"], {}).get("title")})
 
     by_shot = defaultdict(list)
     for item in anomalies.values():
-        if item["capture"] and item["_boxes"]:
-            by_shot[item["capture"]].append({**item["_boxes"][0], "level": "critique" if item["severite"] == "critique" else "majeure"})
+        if item["screenshot"] and item["_boxes"]:
+            by_shot[item["screenshot"]].append({**item["_boxes"][0], "level": "critical" if item["severity"] == "critical" else "major"})
     for path, boxes in by_shot.items():
-        annotate(path, boxes, str(Path(path).with_suffix("")) + "-annote.png")
+        annotate(path, boxes, str(Path(path).with_suffix("")) + "-annotated.png")
     for item in anomalies.values():
-        if item["capture"] and item["_boxes"]:
-            item["capture_annotee"] = str(Path(item["capture"]).with_suffix("")) + "-annote.png"
+        if item["screenshot"] and item["_boxes"]:
+            item["annotated_screenshot"] = str(Path(item["screenshot"]).with_suffix("")) + "-annotated.png"
         item.pop("_boxes", None)
     return list(anomalies.values()), changes, new_shots
 
 
 def render_review(review, path):
-    counts = review["compteurs"]
+    counts = review["counts"]
     lines = [
-        f"# Revue des scènes UI : {review['statut'].upper()}",
+        f"# UI scene review: {review['status'].upper()}",
         "",
-        f"- Date : {review['date']} ; révision : {review['revision']}",
-        f"- Scènes : {counts['scenes']} × {len(review['viewports'])} viewports = {counts['executions']} exécutions ({counts['erreurs']} en erreur)",
-        f"- Anomalies bloquantes : {counts['bloquantes']} ; autres : {counts['autres']} ; connues acceptées : {counts['connues']}",
-        f"- Changements visuels à revoir : {counts['changements_visuels']} ; nouvelles captures sans référence : {counts['nouvelles_captures']}",
+        f"- Date: {review['date']}; revision: {review['revision']}",
+        f"- Scenes: {counts['scenes']} x {len(review['viewports'])} viewports = {counts['executions']} executions ({counts['errors']} with errors)",
+        f"- Blocking anomalies: {counts['blocking']}; other: {counts['other']}; known and accepted: {counts['known']}",
+        f"- Visual changes to review: {counts['visual_changes']}; new screenshots without baseline: {counts['new_captures']}",
         "",
-        "> Revue automatique : les anomalies sont des candidats étayés par des mesures. Les changements visuels doivent être acceptés (voulus) ou corrigés (régressions).",
+        "> Automated review: anomalies are candidates backed by measurements. Visual changes must be accepted (intended) or fixed (regressions).",
         "",
     ]
-    order = {"critique": 0, "majeure": 1, "moderee": 2, "mineure": 3, "info": 4}
-    blocking = sorted([a for a in review["anomalies"] if a["bloquant"]], key=lambda a: (order[a["severite"]], a["scene"]))
-    others = sorted([a for a in review["anomalies"] if not a["bloquant"]], key=lambda a: (order[a["severite"]], a["scene"]))
-    for title, items in (("Anomalies bloquantes", blocking), ("Autres anomalies", others)):
+    order = {"critical": 0, "major": 1, "moderate": 2, "minor": 3, "info": 4}
+    blocking = sorted([a for a in review["anomalies"] if a["blocking"]], key=lambda a: (order[a["severity"]], a["scene"]))
+    others = sorted([a for a in review["anomalies"] if not a["blocking"]], key=lambda a: (order[a["severity"]], a["scene"]))
+    for title, items in (("Blocking anomalies", blocking), ("Other anomalies", others)):
         lines += [f"## {title}", ""]
         if not items:
-            lines += ["Aucune.", ""]
+            lines += ["None.", ""]
         grouped = defaultdict(list)
         for item in items:
             grouped[item["type"]].append(item)
         for kind, group in grouped.items():
-            lines += [f"### {kind} ({group[0]['severite']}, {group[0]['controle']}) : {len(group)}", ""]
+            lines += [f"### {kind} ({group[0]['severity']}, {group[0]['control']}): {len(group)}", ""]
             for item in group[:40]:
-                capture = item.get("capture_annotee") or item.get("capture") or ""
+                screenshot = item.get("annotated_screenshot") or item.get("screenshot") or ""
                 details = item["details"] if isinstance(item["details"], str) else json.dumps(item["details"], ensure_ascii=False)[:240]
-                lines.append(f"- {item['scene']} [{item['viewport']}] `{(item['selecteur'] or '')[:90]}` : {details} ({capture}) clé `{item['key']}`")
+                lines.append(f"- {item['scene']} [{item['viewport']}] `{(item['selector'] or '')[:90]}`: {details} ({screenshot}) key `{item['key']}`")
             if len(group) > 40:
-                lines.append(f"- ... {len(group) - 40} de plus dans review.json")
+                lines.append(f"- ... {len(group) - 40} more in review.json")
             lines.append("")
-    lines += ["## Changements visuels par rapport aux références", ""]
-    if not review["changements_visuels"]:
-        lines.append("Aucun.")
-    for change in review["changements_visuels"][:200]:
-        lines.append(f"- {change['scene']} [{change['viewport']}] {change['titre_scene']} : {round(change['ratio'] * 100, 2)} % de pixels changés{' , taille modifiée' if change['size_changed'] else ''} ({change['diff']})")
-    lines += ["", "## Non couvert par la suite", ""]
-    lines += [f"- {n['element']} : {n['raison']}" for n in review.get("non_couvert", [])[:60]]
-    lines += ["", "Pour accepter des changements voulus : `play_scenarios.py --suite <dossier> --accept S-xxxx,S-yyyy` (ou `all`).", ""]
+    lines += ["## Visual changes compared with baselines", ""]
+    if not review["visual_changes"]:
+        lines.append("None.")
+    for change in review["visual_changes"][:200]:
+        lines.append(f"- {change['scene']} [{change['viewport']}] {change['scene_title']}: {round(change['ratio'] * 100, 2)}% of pixels changed{', size changed' if change['size_changed'] else ''} ({change['diff']})")
+    lines += ["", "## Not covered by the suite", ""]
+    lines += [f"- {n['element']}: {n['reason']}" for n in review.get("not_covered", [])[:60]]
+    lines += ["", "To accept intended changes: `play_scenarios.py --suite <folder> --accept S-xxxx,S-yyyy` (or `all`).", ""]
     Path(path).write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -438,7 +438,7 @@ def accept(args):
     review_path = suite_dir / "last-review.json"
     review = read_json(review_path)
     if not review:
-        emit({"status": "error", "error": "aucune revue à accepter"}, 1)
+        emit({"status": "error", "error": "no review to accept"}, 1)
     run_dir = Path(review["run_dir"])
     wanted = None if args.accept == "all" else set(args.accept.split(","))
     copied = 0
@@ -450,60 +450,60 @@ def accept(args):
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(shot, target)
         copied += 1
-    review["changements_visuels"] = [c for c in review["changements_visuels"] if wanted is not None and c["scene"] not in wanted]
-    review["compteurs"]["changements_visuels"] = len(review["changements_visuels"])
-    review.setdefault("acceptations", []).append({"scenes": args.accept, "date": now_iso(), "captures": copied})
-    review["statut"] = status_of(review)
+    review["visual_changes"] = [c for c in review["visual_changes"] if wanted is not None and c["scene"] not in wanted]
+    review["counts"]["visual_changes"] = len(review["visual_changes"])
+    review.setdefault("acceptances", []).append({"scenes": args.accept, "date": now_iso(), "screenshots": copied})
+    review["status"] = status_of(review)
     write_json(review_path, review)
     render_review(review, run_dir / "review.md")
-    emit({"tool": "play_scenarios", "accepted": args.accept, "captures_copiees": copied, "statut": review["statut"]})
+    emit({"tool": "play_scenarios", "accepted": args.accept, "copied_screenshots": copied, "status": review["status"]})
 
 
 def accept_anomaly(args):
     suite_dir = Path(args.suite)
     if not args.reason or not args.accepted_by:
-        emit({"status": "refused", "error": "--reason et --accepted-by sont obligatoires : seule une décision explicite de l'utilisateur accepte une anomalie"}, 1)
+        emit({"status": "refused", "error": "--reason and --accepted-by are required: only an explicit user decision accepts an anomaly"}, 1)
     known = read_json(suite_dir / "known-issues.json", []) or []
     known = [k for k in known if k["key"] != args.accept_anomaly]
-    known.append({"key": args.accept_anomaly, "raison": args.reason, "acceptee_par": args.accepted_by, "date": now_iso()})
+    known.append({"key": args.accept_anomaly, "reason": args.reason, "accepted_by": args.accepted_by, "date": now_iso()})
     write_json(suite_dir / "known-issues.json", known)
     review = read_json(suite_dir / "last-review.json")
     if review:
         for item in review["anomalies"]:
             if item["key"] == args.accept_anomaly:
-                item["bloquant"] = False
-                item["connue"] = known[-1]
-        review["compteurs"]["bloquantes"] = sum(1 for a in review["anomalies"] if a["bloquant"])
-        review["statut"] = status_of(review)
+                item["blocking"] = False
+                item["known"] = known[-1]
+        review["counts"]["blocking"] = sum(1 for a in review["anomalies"] if a["blocking"])
+        review["status"] = status_of(review)
         write_json(suite_dir / "last-review.json", review)
         render_review(review, Path(review["run_dir"]) / "review.md")
-    emit({"tool": "play_scenarios", "anomalie_acceptee": args.accept_anomaly, "statut": review["statut"] if review else None})
+    emit({"tool": "play_scenarios", "accepted_anomaly": args.accept_anomaly, "status": review["status"] if review else None})
 
 
 def status_of(review):
-    counts = review["compteurs"]
-    if counts["bloquantes"]:
-        return "echec"
-    if counts["erreurs"] or review.get("selection_partielle"):
-        return "incomplet"
-    if counts["changements_visuels"] or (counts["nouvelles_captures"] and review["mode"] == "review"):
-        return "a-revoir"
+    counts = review["counts"]
+    if counts["blocking"]:
+        return "failed"
+    if counts["errors"] or review.get("partial_selection"):
+        return "incomplete"
+    if counts["visual_changes"] or (counts["new_captures"] and review["mode"] == "review"):
+        return "needs-review"
     return "ok"
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--suite", required=True, help="Dossier de la suite (contient scenes.json)")
-    parser.add_argument("--url", help="URL de base de l'application lancée (défaut : origine de scenes.json)")
+    parser.add_argument("--suite", required=True, help="Suite folder (contains scenes.json)")
+    parser.add_argument("--url", help="Base URL of the running application (default: origin from scenes.json)")
     parser.add_argument("--mode", choices=["review", "baseline"], default="review")
     parser.add_argument("--viewports", default="mobile,laptop")
-    parser.add_argument("--scenes", help="Identifiants à rejouer (sinon toutes)")
-    parser.add_argument("--categories", help="Catégories à rejouer (sinon toutes)")
+    parser.add_argument("--scenes", help="Identifiers to replay (otherwise all)")
+    parser.add_argument("--categories", help="Categories to replay (otherwise all)")
     parser.add_argument("--workers", type=int, default=max(1, min(4, (os.cpu_count() or 2) // 2)))
     parser.add_argument("--engine", default="chromium", choices=["chromium", "firefox", "webkit"])
     parser.add_argument("--browser-path")
     parser.add_argument("--headed", action="store_true")
-    parser.add_argument("--allow-mutations", action="store_true", help="Laisser passer POST/PUT/DELETE (environnement de test uniquement)")
+    parser.add_argument("--allow-mutations", action="store_true", help="Let POST/PUT/DELETE through (test environment only)")
     parser.add_argument("--action-timeout", type=int, default=5000)
     parser.add_argument("--effect-ms", type=int, default=500)
     parser.add_argument("--settle-ms", type=int, default=150)
@@ -511,16 +511,16 @@ def main():
     parser.add_argument("--diff-tolerance", type=int, default=16)
     parser.add_argument("--max-diff-ratio", type=float, default=0.001)
     parser.add_argument("--theme", default="light")
-    parser.add_argument("--locale", default="fr-FR")
-    parser.add_argument("--timezone", default="Europe/Paris")
+    parser.add_argument("--locale", default="en-US")
+    parser.add_argument("--timezone", default="UTC")
     parser.add_argument("--zoom", type=float, default=1.0)
     parser.add_argument("--reduced-motion", default="no-preference")
     parser.add_argument("--forced-colors", action="store_true")
     parser.add_argument("--respect-csp", action="store_true")
     parser.add_argument("--storage-state")
-    parser.add_argument("--mask", default="", help="Sélecteurs de zones dynamiques à masquer dans les captures (séparés par des virgules), en plus de 'masques' dans scenes.json")
-    parser.add_argument("--accept", help="Accepter les changements visuels de ces scènes (ou all)")
-    parser.add_argument("--accept-anomaly", help="Clé d'anomalie à marquer connue")
+    parser.add_argument("--mask", default="", help="Selectors of dynamic areas to mask in screenshots (comma separated), in addition to 'masks' in scenes.json")
+    parser.add_argument("--accept", help="Accept the visual changes of these scenes (or all)")
+    parser.add_argument("--accept-anomaly", help="Anomaly key to mark as known")
     parser.add_argument("--reason")
     parser.add_argument("--accepted-by")
     parser.add_argument("--worker-index", type=int, help=argparse.SUPPRESS)
@@ -532,9 +532,9 @@ def main():
     suite_dir = Path(args.suite)
     suite = read_json(suite_dir / "scenes.json")
     if suite is None:
-        emit({"status": "error", "error": f"{suite_dir / 'scenes.json'} introuvable : lancer explore_site.py puis generate_scenarios.py"}, 2)
-    args.url = args.url or suite.get("origine") or suite.get("source")
-    args.mask_selectors = [m.strip() for m in args.mask.split(",") if m.strip()] + list(suite.get("masques", []))
+        emit({"status": "error", "error": f"{suite_dir / 'scenes.json'} not found: run explore_site.py then generate_scenarios.py"}, 2)
+    args.url = args.url or suite.get("origin") or suite.get("source")
+    args.mask_selectors = [m.strip() for m in args.mask.split(",") if m.strip()] + list(suite.get("masks", []))
 
     if args.accept:
         accept(args)
@@ -548,7 +548,7 @@ def main():
     try:
         import PIL  # noqa: F401
     except ImportError:
-        capability_missing("pillow", "Pillow est requis pour comparer les captures (setup.sh)")
+        capability_missing("pillow", "Pillow is required to compare screenshots (setup.sh)")
 
     run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
     run_dir = suite_dir / "runs" / run_id
@@ -577,7 +577,7 @@ def main():
         _, stderr = process.communicate()
         data = read_json(out, {}) or {}
         if data.get("fatal"):
-            capability_missing("browser", "Aucun navigateur lançable pour rejouer les scènes", data.get("attempts"))
+            capability_missing("browser", "No launchable browser to replay the scenes", data.get("attempts"))
         if process.returncode != 0:
             worker_errors.append(stderr[-800:])
         results.extend(data.get("results", []))
@@ -593,51 +593,51 @@ def main():
             shutil.copy2(shot, target)
 
     anomalies, changes, new_shots = analyse(results, suite, args, run_dir, suite_dir)
-    executed_errors = sum(1 for r in results if r["status"] == "erreur")
-    unavailable = sum(1 for r in results if r["status"] == "indisponible")
+    executed_errors = sum(1 for r in results if r["status"] == "error")
+    unavailable = sum(1 for r in results if r["status"] == "unavailable")
     review = {
         "tool": "play_scenarios",
         "mode": args.mode,
         "date": now_iso(),
         "revision": git_revision(),
-        "empreinte_ui": ui_fingerprint(Path.cwd()),
-        "empreinte_scenes": hashlib.sha1((suite_dir / "scenes.json").read_bytes()).hexdigest(),
+        "ui_fingerprint": ui_fingerprint(Path.cwd()),
+        "scenes_fingerprint": hashlib.sha1((suite_dir / "scenes.json").read_bytes()).hexdigest(),
         "run_dir": str(run_dir),
         "url": args.url,
         "viewports": [v["id"] for v in viewports],
-        "selection_partielle": bool(args.scenes or args.categories),
-        "duree_s": round(time.time() - started, 1),
-        "compteurs": {
+        "partial_selection": bool(args.scenes or args.categories),
+        "duration_s": round(time.time() - started, 1),
+        "counts": {
             "scenes": len(scenes),
             "executions": len(results),
-            "executions_attendues": expected,
-            "erreurs": executed_errors + max(0, expected - len(results)),
-            "controles_indisponibles": unavailable,
-            "bloquantes": sum(1 for a in anomalies if a["bloquant"]),
-            "autres": sum(1 for a in anomalies if not a["bloquant"] and not a["connue"]),
-            "connues": sum(1 for a in anomalies if a["connue"]),
-            "changements_visuels": len(changes) if args.mode == "review" else 0,
-            "nouvelles_captures": len(new_shots) if args.mode == "review" else 0,
+            "expected_executions": expected,
+            "errors": executed_errors + max(0, expected - len(results)),
+            "unavailable_controls": unavailable,
+            "blocking": sum(1 for a in anomalies if a["blocking"]),
+            "other": sum(1 for a in anomalies if not a["blocking"] and not a["known"]),
+            "known": sum(1 for a in anomalies if a["known"]),
+            "visual_changes": len(changes) if args.mode == "review" else 0,
+            "new_captures": len(new_shots) if args.mode == "review" else 0,
         },
         "anomalies": anomalies,
-        "changements_visuels": changes if args.mode == "review" else [],
-        "nouvelles_captures": new_shots if args.mode == "review" else [],
-        "non_couvert": suite.get("non_couvert", []),
-        "erreurs_workers": worker_errors,
+        "visual_changes": changes if args.mode == "review" else [],
+        "new_captures": new_shots if args.mode == "review" else [],
+        "not_covered": suite.get("not_covered", []),
+        "worker_errors": worker_errors,
     }
-    review["statut"] = status_of(review)
-    if args.mode == "baseline" and review["statut"] == "a-revoir":
-        review["statut"] = "ok"
+    review["status"] = status_of(review)
+    if args.mode == "baseline" and review["status"] == "needs-review":
+        review["status"] = "ok"
     write_json(run_dir / "review.json", review)
     write_json(run_dir / "results.json", results)
     render_review(review, run_dir / "review.md")
-    if not review["selection_partielle"]:
+    if not review["partial_selection"]:
         write_json(suite_dir / "last-review.json", review)
     emit({
-        "tool": "play_scenarios", "mode": args.mode, "statut": review["statut"], "rapport": str(run_dir / "review.md"),
-        "duree_s": review["duree_s"], **review["compteurs"],
-        "types_bloquants": dict(Counter(a["type"] for a in anomalies if a["bloquant"])),
-        "types_autres": dict(Counter(a["type"] for a in anomalies if not a["bloquant"])),
+        "tool": "play_scenarios", "mode": args.mode, "status": review["status"], "report": str(run_dir / "review.md"),
+        "duration_s": review["duration_s"], **review["counts"],
+        "blocking_types": dict(Counter(a["type"] for a in anomalies if a["blocking"])),
+        "other_types": dict(Counter(a["type"] for a in anomalies if not a["blocking"])),
     })
 
 

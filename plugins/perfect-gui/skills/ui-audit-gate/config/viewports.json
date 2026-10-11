@@ -1,5 +1,5 @@
 {
-  "note": "Classes d'écran en pixels CSS, pas des appareils. Recaler sur les analytics du projet si elles sont fournies.",
+  "note": "Screen classes in CSS pixels, not devices. Adjust to the project's analytics when provided.",
   "viewports": [
     {"id": "mobile-narrow", "width": 320, "height": 640, "dpr": 2, "pointer": "coarse", "priority": "P0"},
     {"id": "mobile", "width": 390, "height": 844, "dpr": 3, "pointer": "coarse", "priority": "P0"},

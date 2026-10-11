@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Inventaire d'impact : classe les fichiers modifiés, propage tokens, composants partagés et clés
-de traduction vers leurs usages, puis suggère un niveau d'audit (N1, N2, N3).
+"""Impact inventory: classifies changed files, follows tokens, shared components and translation
+keys to their usages, then suggests an audit level (N1, N2, N3).
 
-Sans --base : modifications non commitées (indexées, non indexées, non suivies).
-Avec --base REF : différences entre REF et HEAD, plus le non commité.
+Without --base: uncommitted changes (staged, unstaged, untracked).
+With --base REF: differences between REF and HEAD, plus uncommitted changes.
 
-Exemple :
+Example:
   python3 impact_scan.py --out .ui-audit/RUN-x/impact.json
   python3 impact_scan.py --base origin/main --out impact.json
 """
@@ -25,16 +25,16 @@ UI_DEPENDENCIES = re.compile(r"(react|vue|svelte|angular|solid|preact|tailwind|b
 
 RULES = [
     ("token", re.compile(r"(^|/)(tokens?|design-tokens|theme|themes|variables|vars)(/|\.|-|_)|tailwind\.config|\.tokens\.json$|theme\.(json|js|ts)$", re.I)),
-    ("style-global", re.compile(r"(^|/)(global|globals|reset|normalize|base|app|index|main|styles?)\.(css|scss|sass|less|pcss)$|(^|/)styles?/", re.I)),
-    ("config-build", re.compile(r"(^|/)(postcss|vite|webpack|next|nuxt|astro|svelte|rollup|babel|tsconfig|angular)\.?(config)?\.(js|cjs|mjs|ts|json)$", re.I)),
-    ("dependance", re.compile(r"(^|/)(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?|pubspec\.yaml|Podfile|build\.gradle(\.kts)?)$")),
+    ("global-style", re.compile(r"(^|/)(global|globals|reset|normalize|base|app|index|main|styles?)\.(css|scss|sass|less|pcss)$|(^|/)styles?/", re.I)),
+    ("build-config", re.compile(r"(^|/)(postcss|vite|webpack|next|nuxt|astro|svelte|rollup|babel|tsconfig|angular)\.?(config)?\.(js|cjs|mjs|ts|json)$", re.I)),
+    ("dependency", re.compile(r"(^|/)(package\.json|package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?|pubspec\.yaml|Podfile|build\.gradle(\.kts)?)$")),
     ("i18n", re.compile(r"(^|/)(locales?|i18n|lang|translations?|messages)/|\.(po|pot|xliff|xlf|arb|strings)$", re.I)),
-    ("composant-partage", re.compile(r"(^|/)(components?/(ui|common|shared|base|core)|ui|design-system|ds|shared|common|primitives|packages/ui)/", re.I)),
+    ("shared-component", re.compile(r"(^|/)(components?/(ui|common|shared|base|core)|ui|design-system|ds|shared|common|primitives|packages/ui)/", re.I)),
     ("navigation", re.compile(r"(^|/)(router|routes|routing|navigation|nav|menu|sidebar|header|layout|layouts)(/|\.)", re.I)),
-    ("formulaire", re.compile(r"(form|field|input|select|checkbox|radio|validation|validator)", re.I)),
+    ("form", re.compile(r"(form|field|input|select|checkbox|radio|validation|validator)", re.I)),
     ("page", re.compile(r"(^|/)(pages|app|routes|views|screens|templates)/", re.I)),
-    ("composant-local", re.compile(r"(^|/)components?/", re.I)),
-    ("logique-ui", re.compile(r"(^|/)(hooks|composables|stores?|state|directives)/", re.I)),
+    ("local-component", re.compile(r"(^|/)components?/", re.I)),
+    ("ui-logic", re.compile(r"(^|/)(hooks|composables|stores?|state|directives)/", re.I)),
 ]
 
 
@@ -68,12 +68,12 @@ def classify(path):
     p = PurePosixPath(path)
     kinds = [kind for kind, pattern in RULES if pattern.search(path)]
     if p.suffix in (".css", ".scss", ".sass", ".less", ".styl", ".pcss") and not kinds:
-        kinds.append("style-local")
-    is_ui = p.suffix in UI_EXTENSIONS or bool(kinds and kinds != ["dependance"]) or (p.suffix in SCRIPT_EXTENSIONS and bool(kinds))
+        kinds.append("local-style")
+    is_ui = p.suffix in UI_EXTENSIONS or bool(kinds and kinds != ["dependency"]) or (p.suffix in SCRIPT_EXTENSIONS and bool(kinds))
     if "/res/layout" in path or "/res/values" in path:
         is_ui = True
-        kinds.append("style-global" if "/values" in path else "composant-local")
-    return (kinds or (["composant-local"] if p.suffix in UI_EXTENSIONS else [])), is_ui
+        kinds.append("global-style" if "/values" in path else "local-component")
+    return (kinds or (["local-component"] if p.suffix in UI_EXTENSIONS else [])), is_ui
 
 
 def grep_files(pattern, cwd, fixed=True, exclude=None):
@@ -87,67 +87,67 @@ def propagate(path, kinds, base, cwd):
     notes = []
     text = diff_text(path, base, cwd)
     changed_lines = [line[1:] for line in text.splitlines() if line[:1] in "+-" and not line.startswith(("+++", "---"))]
-    if {"token", "style-global"} & set(kinds):
+    if {"token", "global-style"} & set(kinds):
         props = sorted({m for line in changed_lines for m in re.findall(r"(--[A-Za-z0-9_-]+)\s*:", line)})
         scss_vars = sorted({m for line in changed_lines for m in re.findall(r"(\$[A-Za-z][\w-]*)\s*:", line)})
         for name in props[:30]:
-            usages += [{"fichier": f, "via": f"var({name})", "confiance": "certain"} for f in grep_files(f"var({name}", cwd, exclude=path)]
+            usages += [{"file": f, "via": f"var({name})", "confidence": "certain"} for f in grep_files(f"var({name}", cwd, exclude=path)]
         for name in scss_vars[:30]:
-            usages += [{"fichier": f, "via": name, "confiance": "certain"} for f in grep_files(name, cwd, exclude=path)]
+            usages += [{"file": f, "via": name, "confidence": "certain"} for f in grep_files(name, cwd, exclude=path)]
         if not props and not scss_vars:
-            notes.append("Aucune variable extraite du diff : considérer tous les écrans principaux comme touchés (confiance probable).")
-    if {"composant-partage", "composant-local", "navigation", "formulaire"} & set(kinds):
+            notes.append("No variable extracted from the diff: treat all main screens as affected (probable confidence).")
+    if {"shared-component", "local-component", "navigation", "form"} & set(kinds):
         stem = PurePosixPath(path).stem
         if stem.lower() in ("index", "style", "styles", "main"):
             stem = PurePosixPath(path).parent.name
         if len(stem) > 2:
             for f in grep_files(rf"(import|require|from)[^\n]*['\"/]{re.escape(stem)}(['\"./]|$)", cwd, fixed=False, exclude=path):
-                usages.append({"fichier": f, "via": f"import {stem}", "confiance": "certain"})
+                usages.append({"file": f, "via": f"import {stem}", "confidence": "certain"})
             for f in grep_files(f"<{stem}", cwd, exclude=path):
-                usages.append({"fichier": f, "via": f"<{stem}", "confiance": "probable"})
+                usages.append({"file": f, "via": f"<{stem}", "confidence": "probable"})
     if "i18n" in kinds:
         keys = sorted({m for line in changed_lines for m in re.findall(r"\"([\w.-]{3,})\"\s*:", line)})
         for key in keys[:40]:
-            usages += [{"fichier": f, "via": f"clé {key}", "confiance": "probable"} for f in grep_files(key, cwd, exclude=path)]
-        notes.append("Vérifier chaque langue supportée : les longueurs diffèrent.")
-    if "dependance" in kinds:
+            usages += [{"file": f, "via": f"key {key}", "confidence": "probable"} for f in grep_files(key, cwd, exclude=path)]
+        notes.append("Check every supported language: text lengths differ.")
+    if "dependency" in kinds:
         ui_lines = [line.strip() for line in changed_lines if UI_DEPENDENCIES.search(line)]
         if ui_lines:
-            notes.append("Dépendances UI modifiées : " + "; ".join(ui_lines[:8]))
+            notes.append("UI dependencies changed: " + "; ".join(ui_lines[:8]))
         else:
-            notes.append("Aucune dépendance UI reconnue dans le diff (vérifier si besoin).")
+            notes.append("No known UI dependency in the diff (check if needed).")
     unique = {}
     for usage in usages:
-        unique.setdefault(usage["fichier"], usage)
+        unique.setdefault(usage["file"], usage)
     return list(unique.values()), notes
 
 
 def suggest_level(entries):
-    rules = load_config("levels.json")["regles"]
+    rules = load_config("levels.json")["rules"]
     kinds = {k for e in entries for k in e["types"]}
-    paths = " ".join(e["fichier"].lower() for e in entries)
+    paths = " ".join(e["file"].lower() for e in entries)
     reasons = []
     level = "N1"
-    if kinds & set(rules["N2_si_types"]):
+    if kinds & set(rules["N2_if_types"]):
         level = "N2"
-        reasons.append("types " + ", ".join(sorted(kinds & set(rules["N2_si_types"]))))
-    if kinds & set(rules["N3_si_types"]):
-        dependency_only = kinds & set(rules["N3_si_types"]) == {"dependance"} and not any("Dépendances UI modifiées" in n for e in entries for n in e["notes"])
+        reasons.append("types " + ", ".join(sorted(kinds & set(rules["N2_if_types"]))))
+    if kinds & set(rules["N3_if_types"]):
+        dependency_only = kinds & set(rules["N3_if_types"]) == {"dependency"} and not any("UI dependencies changed" in n for e in entries for n in e["notes"])
         if not dependency_only:
             level = "N3"
-            reasons.append("types " + ", ".join(sorted(kinds & set(rules["N3_si_types"]))))
-    critical = [w for w in rules["N3_si_chemins"] if w in paths]
+            reasons.append("types " + ", ".join(sorted(kinds & set(rules["N3_if_types"]))))
+    critical = [w for w in rules["N3_if_paths"] if w in paths]
     if critical:
         level = "N3"
-        reasons.append("parcours critique probable : " + ", ".join(critical))
-    return level, reasons or ["changement local"]
+        reasons.append("likely critical flow: " + ", ".join(critical))
+    return level, reasons or ["local change"]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--base", help="Référence git de comparaison (branche, commit)")
+    parser.add_argument("--base", help="Git reference to compare against (branch, commit)")
     parser.add_argument("--root", default=".")
-    parser.add_argument("--files", nargs="*", help="Liste explicite de fichiers (sans git)")
+    parser.add_argument("--files", nargs="*", help="Explicit list of files (without git)")
     parser.add_argument("--out")
     args = parser.parse_args()
 
@@ -155,39 +155,39 @@ def main():
     inside = git("rev-parse", "--is-inside-work-tree", cwd=cwd).strip() == "true"
     if args.files:
         files = args.files
-        source = "liste fournie"
+        source = "provided list"
     elif inside:
         files = changed_files(args.base, cwd)
-        source = f"git (base {args.base})" if args.base else "git (non commité)"
+        source = f"git (base {args.base})" if args.base else "git (uncommitted)"
     else:
         emit({"tool": "impact_scan", "status": "capability-missing", "capability": "git",
-              "hint": "Pas de dépôt git : fournir --files ou déduire le périmètre de la session (confiance : inconnu)."}, 3)
+              "hint": "No git repository: pass --files or infer the scope from the session (confidence: unknown)."}, 3)
 
     entries = []
     for path in files:
         kinds, is_ui = classify(path)
-        if not is_ui and "dependance" not in kinds:
+        if not is_ui and "dependency" not in kinds:
             continue
-        usages, notes = propagate(path, kinds, args.base, cwd) if inside else ([], ["Propagation impossible sans git"])
-        entries.append({"fichier": path, "types": kinds, "usages": usages, "notes": notes})
+        usages, notes = propagate(path, kinds, args.base, cwd) if inside else ([], ["Propagation impossible without git"])
+        entries.append({"file": path, "types": kinds, "usages": usages, "notes": notes})
 
     level, reasons = suggest_level(entries)
-    impacted = sorted({u["fichier"] for e in entries for u in e["usages"]} | {e["fichier"] for e in entries})
-    global_change = any({"token", "style-global", "config-build"} & set(e["types"]) for e in entries)
+    impacted = sorted({u["file"] for e in entries for u in e["usages"]} | {e["file"] for e in entries})
+    global_change = any({"token", "global-style", "build-config"} & set(e["types"]) for e in entries)
     result = {
         "tool": "impact_scan",
-        "cree_le": now_iso(),
+        "created_at": now_iso(),
         "source": source,
-        "fichiers_modifies": files,
-        "fichiers_ui": entries,
-        "zones_impactees": impacted,
-        "changement_global": global_change,
-        "niveau_suggere": level,
-        "raisons": reasons,
-        "rappel": "Si changement_global : échantillonner tous les écrans principaux, la détection statique ne voit pas tout." if global_change else None,
+        "changed_files": files,
+        "ui_files": entries,
+        "impacted_files": impacted,
+        "global_change": global_change,
+        "suggested_level": level,
+        "reasons": reasons,
+        "reminder": "If global_change: sample all main screens, static detection does not see everything." if global_change else None,
     }
     if not entries:
-        result["note"] = "Aucun fichier d'interface détecté. Vérifier que la demande ne touche pas l'UI par un autre biais (données affichées, API)."
+        result["note"] = "No interface file detected. Check that the request does not affect the UI some other way (displayed data, API)."
     if args.out:
         write_json(args.out, result)
     emit(result)

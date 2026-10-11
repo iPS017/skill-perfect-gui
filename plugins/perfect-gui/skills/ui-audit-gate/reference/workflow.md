@@ -1,58 +1,58 @@
-# Workflow détaillé
+# Detailed workflow
 
-Chaque étape liste ses entrées, ses actions, ses preuves et sa condition de sortie. `$RUN` est le dossier créé par `init_run.py`.
+Each step lists its inputs, its actions, its evidence and its exit condition. `$RUN` is the folder created by `init_run.py`.
 
 ```text
-[1 Cadrer] -> [2 Avant] -> [3 Rechercher] -> [4 Exécuter] -> [5 Inspecter]
-   -> [6 Consigner] -> [7 Corriger] -> [8 Revérifier] --(reste des défauts, itérations < limite)--> [7]
-   -> [9 Rapporter et décider]
+[1 Frame] -> [2 Before] -> [3 Research] -> [4 Run] -> [5 Inspect]
+   -> [6 Record] -> [7 Fix] -> [8 Re-verify] --(findings remain, iterations < limit)--> [7]
+   -> [9 Report and decide]
 ```
 
-Si le skill est invoqué avant le codage, les étapes 1 à 3 précèdent l'implémentation. S'il est invoqué après, l'état « avant » se reconstruit depuis git :
+If the skill is invoked before coding, steps 1 to 3 come before the implementation. If it is invoked afterwards, the "before" state is rebuilt from git:
 
 ```bash
-git worktree add ../_ui-audit-before HEAD   # ou la révision précédant les modifications
-# lancer l'application depuis ce worktree sur un autre port, capturer, puis :
+git worktree add ../_ui-audit-before HEAD   # or the revision before the changes
+# start the application from this worktree on another port, capture, then:
 git worktree remove ../_ui-audit-before
 ```
 
-## Étape 1 : Cadrer
+## Step 1: Frame
 
-- **Entrées** : demande, dépôt, conversation, diff.
-- **Actions** :
-  1. `init_run.py --slug <sujet>` pour créer le run.
-  2. `probe.py --out "$RUN/capabilities.json"` pour sonder les capacités.
-  3. `impact_scan.py --out "$RUN/impact.json"` (ajouter `--base <ref>` si les changements sont déjà commités) pour obtenir les zones touchées, leur confiance (`certain`, `probable`, `inconnu`) et le niveau suggéré.
-  4. Remplir `scope.md` : objectif, tâche principale, parcours (1 à 3), critères d'acceptation, contraintes trouvées (design system, `browserslist`, référentiel d'accessibilité), hypothèses avec leur impact si elles sont fausses.
-  5. Trouver comment lancer l'application : `package.json`, README, Makefile, docker-compose, scripts. Ne demander l'URL ou la commande qu'après avoir cherché.
-- **Questions** : seulement si la réponse change le déroulé et qu'aucun choix réversible n'existe. Toutes en un seul message.
-- **Sortie** : périmètre figé, niveau et justification.
+- **Inputs**: request, repository, conversation, diff.
+- **Actions**:
+  1. `init_run.py --slug <topic>` to create the run.
+  2. `probe.py --out "$RUN/capabilities.json"` to probe the capabilities.
+  3. `impact_scan.py --out "$RUN/impact.json"` (add `--base <ref>` if the changes are already committed) to get the affected areas, their confidence (`certain`, `probable`, `unknown`) and the suggested level.
+  4. Fill in `scope.md` with the goal, main task, user flows (1 to 3), acceptance criteria, constraints found (design system, `browserslist`, accessibility standard), assumptions with their impact if they are wrong.
+  5. Find out how to start the application: `package.json`, README, Makefile, docker-compose, scripts. Only ask for the URL or the command after searching.
+- **Questions**: only if the answer changes the course of the audit and no reversible choice exists. All in a single message.
+- **Exit**: scope frozen, level and justification.
 
-## Étape 2 : Capturer l'état initial
+## Step 2: Capture the initial state
 
 ```bash
 python3 "$SKILL_DIR/scripts/capture.py" --url http://localhost:5173/checkout \
   --viewports P0 --out "$RUN/before" --name checkout --state normal --freeze-time 2026-01-15T10:00:00Z
 ```
 
-- Capturer les mêmes écrans et états que ceux qui seront audités après.
-- Garder les manifestes (`$RUN/before/manifests/*.json`). Ils fixent les conditions à reproduire.
-- **Sortie** : `baseline=avant`, `first-render` ou `indisponible`, avec sa raison.
+- Capture the same screens and states as those that will be audited afterwards.
+- Keep the manifests (`$RUN/before/manifests/*.json`). They pin the conditions to reproduce.
+- **Exit**: `baseline=before`, `first-render` or `unavailable`, with its reason.
 
-## Étape 3 : Rechercher
+## Step 3: Research
 
-Voir `research-protocol.md`. Commandes de traçage :
+See `research-protocol.md`. Logging commands:
 
 ```bash
 python3 "$SKILL_DIR/scripts/research_log.py" "$RUN" query --text "accessible inline form validation pattern" --tool WebSearch --urls URL1 URL2
 python3 "$SKILL_DIR/scripts/research_log.py" "$RUN" visit --url URL1 --tool WebFetch
-python3 "$SKILL_DIR/scripts/research_log.py" "$RUN" ref --json '{"titre":"...","url":"URL1", ...}'
+python3 "$SKILL_DIR/scripts/research_log.py" "$RUN" ref --json '{"title":"...","url":"URL1", ...}'
 ```
 
-## Étape 4 : Exécuter et capturer
+## Step 4: Run and capture
 
-- Lancer l'application avec les scripts du projet, en arrière-plan si besoin. Vérifier qu'elle répond.
-- Les actions de parcours vont dans un fichier JSON (liste d'objets à une clé) :
+- Start the application with the project scripts, in the background if needed. Check that it responds.
+- User flow actions go into a JSON file (a list of single-key objects):
 
 ```json
 [
@@ -63,11 +63,11 @@ python3 "$SKILL_DIR/scripts/research_log.py" "$RUN" ref --json '{"titre":"...","
 ]
 ```
 
-  Actions disponibles : `goto`, `click`, `fill`, `type`, `press`, `hover`, `focus`, `check`, `select`, `wait`, `wait_for`, `scroll`, `eval`, `set_viewport`.
-- Capturer chaque état avec `--state <code>` (codes dans `configurations.md`).
-- Les transitions (chargement vers succès, ouverture et fermeture de modale, redimensionnement en cours d'usage) sont des contrôles comportementaux séparés. Les vérifier par des actions suivies d'une inspection, pas seulement par des captures finales.
+  Available actions: `goto`, `click`, `fill`, `type`, `press`, `hover`, `focus`, `check`, `select`, `wait`, `wait_for`, `scroll`, `eval`, `set_viewport`.
+- Capture each state with `--state <code>` (codes in `configurations.md`).
+- Transitions (loading to success, opening and closing a modal, resizing during use) are separate behavioral controls. Check them with actions followed by an inspection, not only with final screenshots.
 
-## Étape 5 : Inspecter et croiser
+## Step 5: Inspect and cross-check
 
 ```bash
 python3 "$SKILL_DIR/scripts/inspect_page.py" --url URL --viewports P0 --out "$RUN/inspect" --scan-scroll
@@ -79,52 +79,52 @@ python3 "$SKILL_DIR/scripts/resize_probe.py" --url URL --mode state --widths 136
 python3 "$SKILL_DIR/scripts/resize_probe.py" --url URL --mode keyboard --field "#email" --action "button[type=submit]"
 ```
 
-Lecture des résultats :
-- `result: issues` signale des candidats. Chaque candidat se confirme sur la capture annotée (`annotated.png`) avant de devenir un défaut. Les heuristiques d'alignement et de visibilité du focus ont une confiance moyenne.
-- `result: clean` signifie « rien détecté par ce script ». Ce n'est pas une preuve d'absence de défaut, et le contrôle ne passe `reussi` que si sa méthode est entièrement couverte par le script (voir la colonne Auto. de `controls.md`).
-- `result: error` ou un code de sortie 3 donne `non_verifie`, avec la raison.
-- L'arbre d'accessibilité (`aria-snapshot.txt`) sert de preuve pour ACC-05. Il ne remplace pas un lecteur d'écran réel (ACC-11).
+Reading the results:
+- `result: issues` flags candidates. Each candidate is confirmed on the annotated screenshot (`annotated.png`) before it becomes a finding. The alignment and focus visibility heuristics have medium confidence.
+- `result: clean` means "nothing detected by this script". It is not proof that no defect exists, and the control only becomes `passed` if its method is fully covered by the script (see the Auto. column in `controls.md`).
+- `result: error` or exit code 3 gives `not_verified`, with the reason.
+- The accessibility tree (`aria-snapshot.txt`) serves as evidence for ACC-05. It does not replace a real screen reader (ACC-11).
 
-## Étape 6 : Consigner et prioriser
+## Step 6: Record and prioritize
 
-- Une fiche `findings/DEF-xxx.json` par défaut, plusieurs instances possibles.
-- Reproduire deux fois. Si le défaut est intermittent, l'indiquer et baisser la confiance.
-- Séparer `observe` (faits, mesures) et `interpretation` (cause supposée).
-- Étiquette de nature, sévérité, priorité, confiance, effort : voir `severity-and-fixes.md`.
+- One record `findings/DEF-xxx.json` per finding, possibly with several instances.
+- Reproduce twice. If the finding is intermittent, say so and lower the confidence.
+- Keep `observed` (facts, measurements) separate from `interpretation` (presumed cause).
+- Nature label, severity, priority, confidence, effort: see `severity-and-fixes.md`.
 
-## Étape 7 : Corriger ou proposer
+## Step 7: Fix or propose
 
-- Une fiche de correction par cause (`severity-and-fixes.md`).
-- Si la cause commune est établie, corriger le token ou le composant et lister les instances à revérifier.
-- Sans autorisation, ou hors du périmètre de la demande : proposer un diff ou une description précise, sans l'appliquer.
+- One fix record per cause (`severity-and-fixes.md`).
+- If the common cause is established, fix the token or the component and list the instances to re-verify.
+- Without permission, or outside the scope of the request: propose a diff or a precise description, without applying it.
 
-## Étape 8 : Revérifier
+## Step 8: Re-verify
 
 ```bash
-python3 "$SKILL_DIR/scripts/capture.py" ... --out "$RUN/after-fix-1"     # mêmes options que l'avant
+python3 "$SKILL_DIR/scripts/capture.py" ... --out "$RUN/after-fix-1"     # same options as the before state
 python3 "$SKILL_DIR/scripts/visual_diff.py" --before "$RUN/before" --after "$RUN/after-fix-1" --out "$RUN/diff"
 ```
 
-- Chaque différence se qualifie : attendue (liée à la correction) ou régression.
-- Relancer les contrôles de non-régression listés dans chaque fiche de correction.
-- Limite : 3 tentatives par défaut, 6 itérations par run. Au-delà, statut `echoue_non_resolu`, avec `cause_blocage` et `action_requise` (décision produit, information manquante, outil manquant, hors périmètre).
+- Each difference is qualified: expected (linked to the fix) or regression.
+- Rerun the non-regression controls listed in each fix record.
+- Limit: 3 attempts by default, 6 iterations per run. Beyond that, status `failed_unresolved`, with `blocking_cause` and `required_action` (product decision, missing information, missing tool, out of scope).
 
-## Étape 9 : Rapporter et décider
+## Step 9: Report and decide
 
 ```bash
 python3 "$SKILL_DIR/scripts/verify_report.py" "$RUN" --apply --render
 ```
 
-- Code 0 : rapport cohérent. La décision est écrite et `report.md` est produit.
-- Code 1 : incohérences listées (preuve manquante, référence non tracée, décision contraire aux règles). Corriger le rapport, jamais les règles.
+- Code 0: consistent report. The decision is written and `report.md` is produced.
+- Code 1: inconsistencies listed (missing evidence, untraced reference, decision contrary to the rules). Fix the report, never the rules.
 
-## Déterminisme
+## Determinism
 
-| Source de variabilité | Mesure |
+| Source of variability | Measure |
 |---|---|
-| Date et heure | `--freeze-time ISO` |
-| Animations, transitions, caret | Neutralisées par défaut dans les captures (`--keep-motion` pour les garder) |
-| Polices | Attente de `document.fonts.ready`. Tester le repli séparément en bloquant les polices (`{"eval": ...}` ou outil réseau). |
-| Réseau | Données de test stables. Mocks côté projet si disponibles. Le réseau réel se teste à part. |
-| Contenu tiers | Masquer ou remplacer par un bloc de même taille, et le signaler |
-| Rendu | Même machine, même navigateur et même version entre avant et après |
+| Date and time | `--freeze-time ISO` |
+| Animations, transitions, caret | Disabled by default in screenshots (`--keep-motion` to keep them) |
+| Fonts | Wait for `document.fonts.ready`. Test the fallback separately by blocking fonts (`{"eval": ...}` or a network tool). |
+| Network | Stable test data. Project-side mocks if available. The real network is tested separately. |
+| Third-party content | Mask it or replace it with a block of the same size, and say so |
+| Rendering | Same machine, same browser and same version between before and after |

@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Journal de recherche Web et fiches de référence d'un run.
+"""Web research log and reference records for a run.
 
-Sous-commandes :
+Subcommands:
   query       --text "..." --tool WebSearch [--urls U1 U2 ...] [--force]
-  visit       --url U --tool WebFetch [--failed "raison"]
+  visit       --url U --tool WebFetch [--failed "reason"]
   unavailable --cause "..."
-  ref         --json '{...}'      (fiche de référence, voir reference/research-protocol.md)
+  ref         --json '{...}'      (reference record, see reference/research-protocol.md)
   list
 
-Une référence 'consultee' ou 'revalidee' est refusée si son URL n'apparaît dans aucune requête
-ni visite du run : on ne cite pas une source qu'on n'a pas vue.
+A reference with access_status 'accessed' or 'revalidated' is refused if its URL appears in no
+query or visit of the run: never cite a source you have not seen.
 """
 import argparse
 import ipaddress
@@ -21,14 +21,14 @@ from urllib.parse import urlparse
 
 from _common import now_iso, read_json, write_json
 
-REQUIRED_REF_FIELDS = ["titre", "url", "auteur_organisme", "statut_consultation", "rang_source", "question_etudiee", "limites_transposition"]
-STATUSES = {"consultee", "revalidee", "memoire_non_revalidee", "inaccessible"}
+REQUIRED_REF_FIELDS = ["title", "url", "author_organization", "access_status", "source_rank", "question", "transfer_limits"]
+STATUSES = {"accessed", "revalidated", "memory_not_revalidated", "unreachable"}
 SENSITIVE_PATTERNS = [
-    (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "adresse e-mail"),
-    (re.compile(r"\b(localhost|127\.0\.0\.1|0\.0\.0\.0)\b", re.I), "hôte local"),
-    (re.compile(r"\b(?:10|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}(?:\.\d{1,3})?\b"), "adresse IP privée"),
-    (re.compile(r"\b[A-Za-z0-9_\-]{32,}\b"), "chaîne qui ressemble à un jeton"),
-    (re.compile(r"\b(?:sk|pk|ghp|gho|xox[bap])[-_][A-Za-z0-9]{10,}"), "secret probable"),
+    (re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+"), "email address"),
+    (re.compile(r"\b(localhost|127\.0\.0\.1|0\.0\.0\.0)\b", re.I), "local host"),
+    (re.compile(r"\b(?:10|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}(?:\.\d{1,3})?\b"), "private IP address"),
+    (re.compile(r"\b[A-Za-z0-9_\-]{32,}\b"), "string that looks like a token"),
+    (re.compile(r"\b(?:sk|pk|ghp|gho|xox[bap])[-_][A-Za-z0-9]{10,}"), "likely secret"),
 ]
 
 
@@ -90,15 +90,15 @@ def main():
     if args.command == "query":
         hits = [label for pattern, label in SENSITIVE_PATTERNS if pattern.search(args.text)]
         if hits and not args.force:
-            print(json.dumps({"status": "refused", "reason": "requête potentiellement sensible", "detected": hits,
-                              "hint": "Reformuler en décrivant le motif d'interface, sans donnée du produit. --force seulement après vérification."}, ensure_ascii=False, indent=2))
+            print(json.dumps({"status": "refused", "reason": "potentially sensitive query", "detected": hits,
+                              "hint": "Rephrase by describing the interface pattern, without product data. Use --force only after checking."}, ensure_ascii=False, indent=2))
             sys.exit(1)
         log.append({"type": "query", "at": now_iso(), "text": args.text, "tool": args.tool, "urls": args.urls, "results_count": args.results_count})
         write_json(log_path, log)
         print(json.dumps({"status": "ok", "logged": "query", "entries": len(log)}, ensure_ascii=False))
     elif args.command == "visit":
         if is_private_host(args.url):
-            print(json.dumps({"status": "refused", "reason": "URL locale ou privée : ce n'est pas une référence Web"}, ensure_ascii=False))
+            print(json.dumps({"status": "refused", "reason": "local or private URL: this is not a Web reference"}, ensure_ascii=False))
             sys.exit(1)
         log.append({"type": "visit", "at": now_iso(), "url": args.url, "tool": args.tool, "failed": args.failed})
         write_json(log_path, log)
@@ -106,26 +106,26 @@ def main():
     elif args.command == "unavailable":
         log.append({"type": "unavailable", "at": now_iso(), "cause": args.cause})
         write_json(log_path, log)
-        print(json.dumps({"status": "ok", "logged": "unavailable", "consequence": "recherche.statut = non_realisee ; décision plafonnée à VALIDEE_PERIMETRE_TESTE"}, ensure_ascii=False))
+        print(json.dumps({"status": "ok", "logged": "unavailable", "consequence": "research.status = not_done; decision capped at VALIDATED_TESTED_SCOPE"}, ensure_ascii=False))
     elif args.command == "ref":
         ref = json.loads(args.json)
         missing = [f for f in REQUIRED_REF_FIELDS if f not in ref or ref[f] in (None, "")]
         if missing:
-            print(json.dumps({"status": "refused", "reason": "champs manquants", "missing": missing}, ensure_ascii=False))
+            print(json.dumps({"status": "refused", "reason": "missing fields", "missing": missing}, ensure_ascii=False))
             sys.exit(1)
-        if ref["statut_consultation"] not in STATUSES:
-            print(json.dumps({"status": "refused", "reason": f"statut_consultation doit valoir {sorted(STATUSES)}"}, ensure_ascii=False))
+        if ref["access_status"] not in STATUSES:
+            print(json.dumps({"status": "refused", "reason": f"access_status must be one of {sorted(STATUSES)}"}, ensure_ascii=False))
             sys.exit(1)
         seen = logged_urls(log)
-        if ref["statut_consultation"] in ("consultee", "revalidee"):
+        if ref["access_status"] in ("accessed", "revalidated"):
             when = seen.get(normalize(ref["url"]))
             if not when:
-                print(json.dumps({"status": "refused", "reason": "URL absente du journal de ce run : consigner la requête ou la visite d'abord (pas de source non vue)"}, ensure_ascii=False))
+                print(json.dumps({"status": "refused", "reason": "URL not traced in this run's log: record the query or the visit first (no unseen sources)"}, ensure_ascii=False))
                 sys.exit(1)
-            ref["date_consultation"] = when
-        ref.setdefault("date_publication_ou_maj", None)
-        ref.setdefault("constats_cles", [])
-        ref.setdefault("utilisee_pour", [])
+            ref["accessed_at"] = when
+        ref.setdefault("published_or_updated", None)
+        ref.setdefault("key_points", [])
+        ref.setdefault("used_for", [])
         existing = next((x for x in refs if normalize(x["url"]) == normalize(ref["url"])), None)
         if existing:
             ref["id"] = existing["id"]
@@ -136,10 +136,10 @@ def main():
         write_json(refs_path, refs)
         cache_path = Path(args.run).parent / "research-cache.json"
         cache = read_json(cache_path, []) or []
-        if ref["statut_consultation"] in ("consultee", "revalidee"):
-            cache = [c for c in cache if normalize(c["url"]) != normalize(ref["url"])] + [{k: ref[k] for k in ref if k != "utilisee_pour"}]
+        if ref["access_status"] in ("accessed", "revalidated"):
+            cache = [c for c in cache if normalize(c["url"]) != normalize(ref["url"])] + [{k: ref[k] for k in ref if k != "used_for"}]
             write_json(cache_path, cache)
-        print(json.dumps({"status": "ok", "id": ref["id"], "date_consultation": ref.get("date_consultation")}, ensure_ascii=False))
+        print(json.dumps({"status": "ok", "id": ref["id"], "accessed_at": ref.get("accessed_at")}, ensure_ascii=False))
     else:
         print(json.dumps({"log": log, "references": refs}, ensure_ascii=False, indent=2))
 

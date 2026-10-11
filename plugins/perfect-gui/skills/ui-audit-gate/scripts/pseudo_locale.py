@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Pseudo-localise un fichier de traduction JSON (imbriqué ou plat) en préservant les variables.
+"""Pseudo-localizes a JSON translation file (nested or flat) while preserving variables.
 
-Chaque chaîne devient [Ácçéñţš...ẋẋẋ] : environ +40 %, accents, délimiteurs visibles.
-Le texte sans délimiteurs à l'écran signale une chaîne non externalisée (LOC-02).
+Each string becomes [Ácçéñţš...ẋẋẋ]: about +40%, accents, visible delimiters.
+On-screen text without delimiters reveals a string that is not externalized (LOC-02).
 
-Exemple :
-  python3 pseudo_locale.py src/locales/fr.json src/locales/pseudo.json --expansion 0.4
+Example:
+  python3 pseudo_locale.py src/locales/en.json src/locales/pseudo.json --expansion 0.4
 """
 import argparse
 import json

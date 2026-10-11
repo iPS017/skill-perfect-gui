@@ -1,56 +1,56 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Rapport ui-audit-gate",
+  "title": "ui-audit-gate report",
   "type": "object",
-  "required": ["run_id", "niveau", "mode", "recherche", "controles", "decision"],
+  "required": ["run_id", "level", "mode", "research", "controls", "decision"],
   "properties": {
     "run_id": {"type": "string"},
-    "titre": {"type": "string"},
-    "declenchement": {"enum": ["C1", "C2", "C3"]},
-    "niveau": {"enum": ["N1", "N2", "N3"]},
-    "niveau_calcule": {"enum": ["N1", "N2", "N3"]},
-    "couverture_reduite": {"type": "boolean"},
-    "justification_reduction": {"type": ["string", "null"]},
-    "mode": {"enum": ["complet", "maquette", "sans_execution"]},
-    "baseline": {"enum": ["avant", "first-render", "indisponible"]},
-    "recherche": {
+    "title": {"type": "string"},
+    "trigger": {"enum": ["C1", "C2", "C3"]},
+    "level": {"enum": ["N1", "N2", "N3"]},
+    "computed_level": {"enum": ["N1", "N2", "N3"]},
+    "reduced_coverage": {"type": "boolean"},
+    "reduction_justification": {"type": ["string", "null"]},
+    "mode": {"enum": ["full", "mockup", "no_execution"]},
+    "baseline": {"enum": ["before", "first-render", "unavailable"]},
+    "research": {
       "type": "object",
-      "required": ["statut"],
+      "required": ["status"],
       "properties": {
-        "statut": {"enum": ["realisee", "partielle", "non_realisee"]},
+        "status": {"enum": ["done", "partial", "not_done"]},
         "cause": {"type": ["string", "null"]}
       }
     },
-    "comparaisons": {
+    "comparisons": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["ref", "observation", "principe", "ecart", "adaptation", "benefice", "nature"]
+        "required": ["ref", "observation", "principle", "gap", "adaptation", "benefit", "nature"]
       }
     },
-    "changement_visuel": {"type": "boolean"},
-    "controles": {
+    "visual_change": {"type": "boolean"},
+    "controls": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "statut"],
+        "required": ["id", "status"],
         "properties": {
           "id": {"type": "string"},
-          "statut": {"enum": ["reussi", "echoue", "non_verifie", "non_applicable"]},
-          "nature": {"type": "array", "items": {"enum": ["visuel", "structurel", "comportemental", "assistif", "humain"]}},
+          "status": {"enum": ["passed", "failed", "not_verified", "not_applicable"]},
+          "nature": {"type": "array", "items": {"enum": ["visual", "structural", "behavioral", "assistive", "human"]}},
           "configs": {"type": "array", "items": {"type": "string"}},
-          "preuves": {"type": "array", "items": {"type": "string"}},
-          "raison": {"type": "string"},
-          "raison_type": {"enum": ["technique", "humain", "appareil_reel", "hors_perimetre", "autre"]}
+          "evidence": {"type": "array", "items": {"type": "string"}},
+          "reason": {"type": "string"},
+          "reason_type": {"enum": ["technical", "human", "real_device", "out_of_scope", "other"]}
         }
       }
     },
-    "defauts": {"type": "array", "items": {"$ref": "finding.schema.json"}},
-    "corrections": {"type": "array"},
-    "avant_apres": {
+    "findings": {"type": "array", "items": {"$ref": "finding.schema.json"}},
+    "fixes": {"type": "array"},
+    "before_after": {
       "type": "array",
-      "items": {"type": "object", "required": ["apres"], "properties": {"config_id": {"type": "string"}, "avant": {"type": "string"}, "apres": {"type": "string"}, "diff": {"type": "string"}, "commentaire": {"type": "string"}}}
+      "items": {"type": "object", "required": ["after"], "properties": {"config_id": {"type": "string"}, "before": {"type": "string"}, "after": {"type": "string"}, "diff": {"type": "string"}, "comment": {"type": "string"}}}
     },
-    "decision": {"enum": [null, "VALIDEE_PROTOCOLE_COMPLET", "VALIDEE_PERIMETRE_TESTE", "VALIDEE_AVEC_EXCEPTIONS", "NON_VALIDEE", "VALIDATION_LIMITEE"]}
+    "decision": {"enum": [null, "VALIDATED_FULL_PROTOCOL", "VALIDATED_TESTED_SCOPE", "VALIDATED_WITH_EXCEPTIONS", "NOT_VALIDATED", "LIMITED_VALIDATION"]}
   }
 }

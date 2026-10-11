@@ -43,13 +43,13 @@
   };
 
   const roles = {
-    bouton: { selector: 'button, [role=button], input[type=submit], input[type=button], a[class*=btn], a[class*=button]', props: ['fontFamily', 'fontSize', 'fontWeight', 'borderTopLeftRadius', 'textTransform'] },
-    champ: { selector: 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=range]):not([type=submit]):not([type=button]), select, textarea', props: ['fontFamily', 'fontSize', 'borderTopLeftRadius', 'borderTopWidth'] },
-    lien: { selector: 'main p a[href], main li a[href]:not([class*=btn]):not([class*=button])', props: ['color', 'textDecorationLine', 'fontFamily'] },
+    button: { selector: 'button, [role=button], input[type=submit], input[type=button], a[class*=btn], a[class*=button]', props: ['fontFamily', 'fontSize', 'fontWeight', 'borderTopLeftRadius', 'textTransform'] },
+    field: { selector: 'input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=range]):not([type=submit]):not([type=button]), select, textarea', props: ['fontFamily', 'fontSize', 'borderTopLeftRadius', 'borderTopWidth'] },
+    link: { selector: 'main p a[href], main li a[href]:not([class*=btn]):not([class*=button])', props: ['color', 'textDecorationLine', 'fontFamily'] },
     h1: { selector: 'h1', props: ['fontFamily', 'fontSize', 'fontWeight'] },
     h2: { selector: 'h2', props: ['fontFamily', 'fontSize', 'fontWeight'] },
     h3: { selector: 'h3', props: ['fontFamily', 'fontSize', 'fontWeight'] },
-    texte: { selector: 'main p', props: ['fontFamily', 'fontSize', 'lineHeight'] },
+    text: { selector: 'main p', props: ['fontFamily', 'fontSize', 'lineHeight'] },
   };
   const styles = {};
   for (const [role, spec] of Object.entries(roles)) {

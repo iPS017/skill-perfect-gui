@@ -1,256 +1,256 @@
-# Matrice des contrôles
+# Control matrix
 
-Chaque contrôle porte un identifiant stable, utilisé dans `report.json` (`controles[].id`) et dans les fiches de défaut. Les seuils notés « à vérifier » doivent être confirmés dans la version de la norme applicable au projet (WCAG, RGAA, EN 301 549, guidelines de plateforme). L'exigence du projet prime toujours.
+Each control has a stable ID, used in `report.json` (`controls[].id`) and in the finding records. Thresholds marked "to be verified" must be confirmed in the version of the standard that applies to the project (WCAG, RGAA, EN 301 549, platform guidelines). The project's requirement always takes precedence.
 
-## Couverture par les scripts
+## Coverage by the scripts
 
-| Vérification du script | Script | Contrôles alimentés | Couverture |
+| Script check | Script | Controls fed | Coverage |
 |---|---|---|---|
-| `horizontal-overflow` | inspect_page | GEO-01, ACC-08 (à 320 px ou zoom 400 %) | Complète pour la détection. La cause se confirme visuellement. |
-| `text-overflow` | inspect_page | GEO-03, CTA-01, TXT-08, LOC-01 (avec `--pseudo`), TXT-04 (avec `--text-spacing`) | Complète pour le rognage et le débordement de boîtes visibles |
-| `occlusion` | inspect_page `--scan-scroll` | STK-01, STK-06 (partiel) | Points échantillonnés (centre et 4 coins). Un élément décoratif transparent au-dessus peut créer un faux positif. |
-| `target-size` | inspect_page | CTA-03 | Seuil 24 px avec exception d'espacement, plus avertissement sous le seuil tactile en pointeur grossier |
-| `alignment` | inspect_page | GEO-02, CTA-02, CTA-04 | Heuristique, confiance moyenne. Confirmer l'intention sur la capture et dans le design system. |
-| `contrast` | inspect_page | TXT-01 | Fonds unis seulement. Fonds image, dégradé ou transparent : liste `needs_assisted`. |
-| `form-labels` | inspect_page | FRM-01 | Nom accessible approché. Confirmer avec `aria-snapshot.txt`. |
-| `accessible-names` | inspect_page | ACC-05 (partiel) | Noms vides seulement. La pertinence du nom relève d'un jugement humain. |
-| `form-errors` | inspect_page avec actions qui déclenchent l'erreur | FRM-03 (partiel) | Liaison et annonce. Proximité et clarté du message : revue visuelle. |
-| `images` | inspect_page | COL-05 (partiel), COL-04 | Présence de `alt`, images cassées. Pertinence : humain. |
-| `headings` | inspect_page | TXT-02 | Complète pour la structure |
-| `document` | inspect_page | NAV-01 (partiel), ACC-12 | Titre et langue |
-| `landmarks` | inspect_page | ACC-10 | Présence de `main` et du lien d'évitement |
-| `axe` | inspect_page | ACC-01 | Règles axe-core. Les résultats `incomplete` sont à revoir manuellement. |
-| `console` | inspect_page | ROB-01 | Erreurs console, exceptions, réponses 4xx et 5xx |
-| tabulation | keyboard_walk | ACC-02, ACC-03, ACC-04, STK-02, STK-03 (Échap) | Ordre, pièges, visibilité (heuristique de style), masquage |
-| état | resize_probe `--mode state` | ROB-06, FRM-04 (partiel) | Valeurs, focus, rechargement, dialogues ouverts |
-| clavier virtuel | resize_probe `--mode keyboard` | ENV-02 | Émulation du mode resizes-content seulement |
-| diff visuel | visual_diff | DS-05, DS-06 | Pixel. Chaque différence doit être interprétée. |
-| scènes | explore_site, generate_scenarios, play_scenarios | PAR-08, STK-08, COL-03, LOC-02, TXT-05, DS-03, ACC-12, NAV-06, ROB-01, plus les vérifications en page à chaque étape | Une option à la fois ; voir exploration.md |
+| `horizontal-overflow` | inspect_page | GEO-01, ACC-08 (at 320 px or 400% zoom) | Complete for detection. The cause is confirmed visually. |
+| `text-overflow` | inspect_page | GEO-03, CTA-01, TXT-08, LOC-01 (with `--pseudo`), TXT-04 (with `--text-spacing`) | Complete for clipping and overflow of visible boxes |
+| `occlusion` | inspect_page `--scan-scroll` | STK-01, STK-06 (partial) | Sampled points (center and 4 corners). A transparent decorative element on top can cause a false positive. |
+| `target-size` | inspect_page | CTA-03 | 24 px threshold with the spacing exception, plus a warning below the touch guideline for coarse pointers |
+| `alignment` | inspect_page | GEO-02, CTA-02, CTA-04 | Heuristic, medium confidence. Confirm the intent on the screenshot and in the design system. |
+| `contrast` | inspect_page | TXT-01 | Solid backgrounds only. Image, gradient or transparent backgrounds go to the `needs_assisted` list. |
+| `form-labels` | inspect_page | FRM-01 | Approximate accessible name. Confirm with `aria-snapshot.txt`. |
+| `accessible-names` | inspect_page | ACC-05 (partial) | Empty names only. Whether a name is meaningful is a human judgment. |
+| `form-errors` | inspect_page with actions that trigger the error | FRM-03 (partial) | Linking and announcement. Proximity and clarity of the message need a visual review. |
+| `images` | inspect_page | COL-05 (partial), COL-04 | Presence of `alt`, broken images. Relevance is a human judgment. |
+| `headings` | inspect_page | TXT-02 | Complete for the structure |
+| `document` | inspect_page | NAV-01 (partial), ACC-12 | Title and language |
+| `landmarks` | inspect_page | ACC-10 | Presence of `main` and of the skip link |
+| `axe` | inspect_page | ACC-01 | axe-core rules. `incomplete` results must be reviewed manually. |
+| `console` | inspect_page | ROB-01 | Console errors, exceptions, 4xx and 5xx responses |
+| tabbing | keyboard_walk | ACC-02, ACC-03, ACC-04, STK-02, STK-03 (Escape) | Order, traps, visibility (style heuristic), obscuring |
+| state | resize_probe `--mode state` | ROB-06, FRM-04 (partial) | Values, focus, reload, open dialogs |
+| virtual keyboard | resize_probe `--mode keyboard` | ENV-02 | Emulation of the resizes-content mode only |
+| visual diff | visual_diff | DS-05, DS-06 | Pixel level. Each difference must be interpreted. |
+| scenes | explore_site, generate_scenarios, play_scenarios | PAR-08, STK-08, COL-03, LOC-02, TXT-05, DS-03, ACC-12, NAV-06, ROB-01, plus the in-page checks at every step | One option at a time; see exploration.md |
 
-Les contrôles absents de ce tableau se mènent par revue assistée ou humaine selon leur méthode. Un contrôle n'est `reussi` que si toute sa méthode a été exécutée. Une couverture partielle par script, sans revue complémentaire, donne `non_verifie` avec la partie manquante en raison.
+Controls missing from this table are carried out by assisted or human review according to their method. A control is only `passed` if its whole method has been executed. Partial coverage by a script, without a complementary review, gives `not_verified` with the missing part as the reason.
 
-## Extension projet
+## Project extension
 
-Un projet peut ajouter des contrôles dans `.ui-audit/controls-project.md`, avec le même format de tableau et un préfixe `PRJ-`. Il peut aussi désactiver un contrôle générique en le listant avec une justification. Le skill lit ce fichier à l'étape 1 s'il existe.
+A project can add controls in `.ui-audit/controls-project.md`, with the same table format and a `PRJ-` prefix. It can also disable a generic control by listing it with a justification. The skill reads this file at step 1 if it exists.
 
-Légende des colonnes : **Nat.** V=visuel, S=structurel, C=comportemental, A=assistif, H=humain. **Auto.** A=automatisé, As=assisté, H=humain. **F** = fondamental (✓).
+Column legend: **Nat.** V=visual, S=structural, C=behavioral, A=assistive, H=human. **Auto.** A=automated, As=assisted, H=human. **F** = fundamental (✓).
 
-## Contrôles fondamentaux (exécutés à tous les niveaux, liste machine dans `config/levels.json`)
+## Fundamental controls (run at every level, machine-readable list in `config/levels.json`)
 
-GEO-01, GEO-02, GEO-03, GEO-05, STK-01, STK-02, TXT-01, CTA-01, CTA-02, CTA-03, FRM-01, FRM-03 (si formulaire), COL-01, NAV-01, PAR-01, ACC-01, ACC-02, ACC-03, ACC-04, ACC-05, ROB-01, DS-01, ainsi que la couverture des viewports P0 (configurations.md).
+GEO-01, GEO-02, GEO-03, GEO-05, STK-01, STK-02, TXT-01, CTA-01, CTA-02, CTA-03, FRM-01, FRM-03 (if there is a form), COL-01, NAV-01, PAR-01, ACC-01, ACC-02, ACC-03, ACC-04, ACC-05, ROB-01, DS-01, plus coverage of the P0 viewports (configurations.md).
 
-## Géométrie et mise en page (GEO)
+## Geometry and layout (GEO)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| GEO-01 | Scroll horizontal involontaire | `document.documentElement.scrollWidth > innerWidth` ; identifier l'élément le plus large qui dépasse | Aucun débordement de page, sauf zone de scroll horizontal volontaire et signalée | S,V | A | majeure | ✓ |
-| GEO-02 | **Élément décalé ou mal placé** (bouton hors alignement, icône décentrée) | Comparer les bords et centres des éléments frères d'un même groupe (tolérance projet, défaut 1 px CSS) ; comparer aux positions de l'avant et à la grille du design system ; revue visuelle | Alignement sur les lignes de grille ou d'axe attendues ; écarts justifiés par le design | V,S | As | modérée (majeure si l'action principale est concernée) | ✓ |
-| GEO-03 | **Texte débordant ou rogné** | `scrollWidth/Height` vs `client*` ; rect enfant hors rect parent ; ellipsis sans accès au texte complet | Pas de rognage ; un tronquage volontaire offre le texte complet (tooltip accessible, expansion) | S,V | A | majeure | ✓ |
-| GEO-04 | Espacements incohérents | Extraire marges, paddings et gaps calculés, comparer à l'échelle de tokens | Valeurs issues de l'échelle ; écarts justifiés | S | A | mineure `[PRÉFÉRENCE]` sauf exigence DS | |
-| GEO-05 | Tailles minimales et maximales non tenues (éléments écrasés ou étirés) | Mesure des boîtes à min, max et points de rupture ±1 px | Pas d'élément de largeur ou hauteur nulle ou négative ; lignes lisibles | S,V | A | majeure | ✓ |
-| GEO-06 | Retour à la ligne indésirable (mot coupé, orphelin dans un bouton, icône séparée de son libellé) | Nombre de lignes par élément (hauteur / line-height) ; capture | Libellés de contrôle sur une ligne ou retour maîtrisé | V,S | As | modérée | |
-| GEO-07 | Proportions et densité (zones vides ou surchargées) | Revue heuristique avec les références | Hiérarchie claire | V,H | H | `[PRÉFÉRENCE]` sauf exigence | |
-| GEO-08 | Conteneurs imbriqués (cartes dans cartes, double padding) | Profondeur de conteneurs à bordure ou fond | Profondeur justifiée | V,S | As | mineure | |
-| GEO-09 | Décalage de mise en page (layout shift) au chargement ou à l'interaction | Mesure des décalages (API Layout Instability si disponible) ; comparaison de captures successives | Pas de déplacement inattendu d'un élément visé par l'utilisateur | C,S | A | majeure si un clic est détourné | |
+| GEO-01 | Unintended horizontal scroll | `document.documentElement.scrollWidth > innerWidth`; identify the widest element that overflows | No page overflow, except an intentional and signposted horizontal scroll area | S,V | A | major | ✓ |
+| GEO-02 | **Misaligned or misplaced element** (button out of alignment, off-center icon) | Compare the edges and centers of sibling elements in the same group (project tolerance, default 1 CSS px); compare with the before positions and with the design system grid; visual review | Aligned on the expected grid lines or axes; offsets justified by the design | V,S | As | moderate (major if the primary action is affected) | ✓ |
+| GEO-03 | **Overflowing or clipped text** | `scrollWidth/Height` compared with `client*` values; child rect outside the parent rect; ellipsis without access to the full text | No clipping; intentional truncation offers the full text (accessible tooltip, expansion) | S,V | A | major | ✓ |
+| GEO-04 | Inconsistent spacing | Extract computed margins, paddings and gaps, compare with the token scale | Values taken from the scale; offsets justified | S | A | minor `[PREFERENCE]` unless a DS requirement | |
+| GEO-05 | Minimum and maximum sizes not respected (squashed or stretched elements) | Measure boxes at min, max and at breakpoints +/-1 px | No element with zero or negative width or height; readable lines | S,V | A | major | ✓ |
+| GEO-06 | Unwanted line wrapping (broken word, orphan in a button, icon separated from its label) | Number of lines per element (height / line-height); screenshot | Control labels on one line or controlled wrapping | V,S | As | moderate | |
+| GEO-07 | Proportions and density (empty or overloaded areas) | Heuristic review against the references | Clear hierarchy | V,H | H | `[PREFERENCE]` unless a requirement | |
+| GEO-08 | Nested containers (cards inside cards, double padding) | Depth of containers with a border or background | Justified depth | V,S | As | minor | |
+| GEO-09 | Layout shift on load or on interaction | Measure the shifts (Layout Instability API if available); compare successive screenshots | No unexpected movement of an element the user is aiming at | C,S | A | major if a click is diverted | |
 
-## Empilement et positionnement (STK)
+## Stacking and positioning (STK)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| STK-01 | **Superposition masquant une action** | Pour chaque élément interactif visible : `elementFromPoint` au centre et aux 4 coins intérieurs ; l'élément retourné doit être la cible ou son descendant | Toute cible interactive cliquable en son centre | S,C | A | critique si action essentielle | ✓ |
-| STK-02 | Élément fixed ou sticky recouvrant du contenu ou le focus | Pendant la tabulation, vérifier que l'élément focalisé n'est pas entièrement masqué par un élément fixe (cf. WCAG 2.2 SC 2.4.11, à vérifier) ; `scroll-padding` | Focus et contenu ancré visibles | S,A | A | majeure | ✓ |
-| STK-03 | Modale : fond scrollable, fermeture, restitution du focus | Ouvrir, puis Échap, clic sur le fond, bouton de fermeture ; vérifier `inert` ou `aria-modal`, le focus initial et le retour du focus au déclencheur | Focus contenu, fermeture possible, retour du focus | C,A | A | majeure | |
-| STK-04 | Popover, menu ou tooltip hors viewport ou mal ancré | Ouvrir près des 4 bords et à 320 px ; rect ⊂ viewport | Repositionnement (flip/shift) ; contenu entier visible | S,V | A | majeure | |
-| STK-05 | Contexte d'empilement inattendu (z-index sans effet) | Remonter les ancêtres qui créent un contexte (`transform`, `opacity<1`, `filter`, `isolation`, `position+z-index`) | Ordre d'empilement conforme à l'intention | S | As | modérée | |
-| STK-06 | Safe areas (encoche, barre d'accueil) | Émulation avec insets ; vérifier l'usage de `env(safe-area-inset-*)` et `viewport-fit=cover` le cas échéant | Aucun contrôle sous une zone non sûre | S,V | As (réel : H) | majeure | |
-| STK-08 | Défilement bloqué après fermeture d'un dialogue, d'un menu ou d'un tiroir | `overflow: hidden` ou `position: fixed` restant sur `body` ou `html` sans dialogue ouvert (`play_scenarios.py`) | Défilement restauré | C,S | A | majeure | |
-| STK-07 | Tiroir ou panneau : scroll interne, dépassement, fermeture | Contenu long dans le panneau, tabulation, Échap | Scroll interne, fermeture, focus géré | C,A | A | modérée | |
+| STK-01 | **Overlap hiding an action** | For each visible interactive element: `elementFromPoint` at the center and at the 4 inner corners; the returned element must be the target or one of its descendants | Every interactive target clickable at its center | S,C | A | critical if the action is essential | ✓ |
+| STK-02 | Fixed or sticky element covering content or focus | While tabbing, check that the focused element is not fully hidden by a fixed element (see WCAG 2.2 SC 2.4.11, to be verified); `scroll-padding` | Focus and anchored content visible | S,A | A | major | ✓ |
+| STK-03 | Modal: scrollable background, closing, focus restoration | Open, then Escape, click on the backdrop, close button; check `inert` or `aria-modal`, the initial focus and the return of focus to the trigger | Focus contained, closing possible, focus returned | C,A | A | major | |
+| STK-04 | Popover, menu or tooltip outside the viewport or badly anchored | Open near the 4 edges and at 320 px; rect inside the viewport | Repositioning (flip/shift); whole content visible | S,V | A | major | |
+| STK-05 | Unexpected stacking context (z-index with no effect) | Walk up the ancestors that create a context (`transform`, `opacity<1`, `filter`, `isolation`, `position+z-index`) | Stacking order matches the intent | S | As | moderate | |
+| STK-06 | Safe areas (notch, home indicator) | Emulation with insets; check the use of `env(safe-area-inset-*)` and `viewport-fit=cover` where relevant | No control under an unsafe area | S,V | As (real device: H) | major | |
+| STK-08 | Scrolling locked after closing a dialog, menu or drawer | `overflow: hidden` or `position: fixed` left on `body` or `html` with no dialog open (`play_scenarios.py`) | Scrolling restored | C,S | A | major | |
+| STK-07 | Drawer or panel: internal scroll, overflow, closing | Long content in the panel, tabbing, Escape | Internal scroll, closing, focus managed | C,A | A | moderate | |
 
-## Textes et typographie (TXT)
+## Text and typography (TXT)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| TXT-01 | Contraste texte/fond insuffisant | Calcul sur les couleurs calculées (et sur pixels si le fond est une image ou un dégradé) ; seuils de référence 4.5:1 et 3:1 pour le grand texte (WCAG 2.2 SC 1.4.3, à vérifier) | Seuils de l'exigence applicable | S,V | A (fond complexe : As) | majeure | ✓ |
-| TXT-02 | Hiérarchie de titres incohérente | Séquence `h1..h6` ; un seul `h1` si c'est la convention projet ; correspondance visuelle et sémantique | Hiérarchie sans saut trompeur | S,A | A | modérée | |
-| TXT-03 | Longueur de ligne, interlignage, taille de base | Mesure (caractères par ligne, line-height) | Selon le DS ; à défaut, valeur de référence citée et sourcée | S | A | mineure `[PRÉFÉRENCE]` sauf exigence | |
-| TXT-04 | Espacement de texte imposé par l'utilisateur casse la mise en page | Injecter les surcharges de WCAG SC 1.4.12 (interlignage 1.5, espacement des paragraphes 2×, lettres 0.12em, mots 0.16em, à vérifier) | Pas de perte de contenu ou de fonction | S,V | A | majeure | |
-| TXT-05 | Police de secours ou échec de chargement | Bloquer les requêtes de police ; capture | Mise en page tenue ; pas d'invisibilité prolongée du texte (FOIT) | V,C | A | modérée | |
-| TXT-06 | Libellés ambigus, jargon, capitalisation et ponctuation incohérentes | Revue du texte contre le guide de rédaction du projet | Libellés explicites (verbe et objet pour les actions) | H | As | mineure à modérée | |
-| TXT-07 | Messages inutiles (« Erreur », « Une erreur est survenue ») | Recenser les messages d'erreur et de statut | Le message dit ce qui s'est passé et quoi faire | H | As | modérée | |
-| TXT-08 | Contenus exceptionnellement longs (nom de 80 caractères, mot sans espace, URL) | Jeu de données `fixtures/edge-text` | Pas de débordement (`overflow-wrap`) | V,S | A | majeure | |
+| TXT-01 | Insufficient text/background contrast | Calculation on the computed colors (and on pixels if the background is an image or a gradient); reference thresholds 4.5:1, and 3:1 for large text (WCAG 2.2 SC 1.4.3, to be verified) | Thresholds of the applicable requirement | S,V | A (complex background: As) | major | ✓ |
+| TXT-02 | Inconsistent heading hierarchy | `h1..h6` sequence; a single `h1` if that is the project convention; visual and semantic match | Hierarchy without misleading skips | S,A | A | moderate | |
+| TXT-03 | Line length, line height, base size | Measurement (characters per line, line-height) | Per the DS; otherwise a cited and sourced reference value | S | A | minor `[PREFERENCE]` unless a requirement | |
+| TXT-04 | User-imposed text spacing breaks the layout | Inject the WCAG SC 1.4.12 overrides (line height 1.5, paragraph spacing 2x, letters 0.12em, words 0.16em, to be verified) | No loss of content or function | S,V | A | major | |
+| TXT-05 | Fallback font or loading failure | Block font requests; screenshot | Layout holds; no prolonged invisible text (FOIT) | V,C | A | moderate | |
+| TXT-06 | Ambiguous labels, jargon, inconsistent capitalization and punctuation | Review of the text against the project's writing guide | Explicit labels (verb and object for actions) | H | As | minor to moderate | |
+| TXT-07 | Useless messages ("Error", "An error occurred") | List the error and status messages | The message says what happened and what to do | H | As | moderate | |
+| TXT-08 | Exceptionally long content (80-character name, word without spaces, URL) | `fixtures/edge-text` dataset | No overflow (`overflow-wrap`) | V,S | A | major | |
 
-## Contrôles et actions (CTA)
+## Controls and actions (CTA)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| CTA-01 | **Texte dépassant d'un bouton** | GEO-03 appliqué aux éléments à rôle `button` ou `link` stylés en bouton, dans toutes les langues et à 200 % de zoom | Libellé contenu dans la surface | S,V | A | majeure | ✓ |
-| CTA-02 | **Bouton décalé ou mal placé** (hors du groupe d'actions, ordre incohérent, action principale peu visible) | GEO-02 + ordre visuel vs ordre DOM + convention de placement du DS et de la plateforme | Placement conforme au DS ; action principale identifiable | V,S | As | modérée à majeure | ✓ |
-| CTA-03 | Cible trop petite ou trop rapprochée | Mesurer la boîte cliquable effective (padding inclus) ; référence minimale 24×24 px CSS ou espacement équivalent (WCAG 2.2 SC 2.5.8, à vérifier) ; plateformes tactiles : guidelines de l'OS (à vérifier, souvent plus grandes) | Seuil de l'exigence applicable | S | A | majeure (tactile) | ✓ |
-| CTA-04 | Icône mal alignée dans son bouton | Centre de l'icône vs centre de la boîte et baseline du texte | Écart ≤ tolérance | V,S | A | mineure | |
-| CTA-05 | État désactivé incompréhensible | Raison exposée ? Alternative ? `aria-disabled` vs `disabled` (focusabilité) | L'utilisateur comprend pourquoi et comment débloquer | C,H | As | modérée | |
-| CTA-06 | Double clic ou soumission répétée | Double clic rapide et Entrée répétée sur une soumission ; compter les requêtes | Une seule action ; feedback d'attente | C | A | majeure (critique si paiement) | |
-| CTA-07 | Action destructive sans protection | Recenser les actions irréversibles | Confirmation proportionnée ou annulation possible | C,H | As | majeure | |
-| CTA-08 | Affordance (un lien ressemble à du texte, un bouton à un label) | Revue visuelle et états hover et focus | Interactif perçu comme tel | V,H | As | modérée | |
-| CTA-09 | Raccourcis clavier conflictuels ou non documentés | Lister les raccourcis ; conflits avec le navigateur, l'OS ou les technologies d'assistance ; raccourcis à une seule touche désactivables (WCAG SC 2.1.4, à vérifier) | Pas de conflit ; découvrabilité | C | As | modérée | |
-| CTA-10 | Priorité des actions (plusieurs boutons primaires concurrents) | Compter les variantes primaires par vue | Une action principale par contexte, sauf justification | V | As | mineure `[PRÉFÉRENCE]` sauf DS | |
+| CTA-01 | **Text overflowing a button** | GEO-03 applied to elements with the `button` role, or `link` styled as a button, in every language and at 200% zoom | Label contained within the surface | S,V | A | major | ✓ |
+| CTA-02 | **Misaligned or misplaced button** (outside the action group, inconsistent order, primary action hard to see) | GEO-02 + visual order vs DOM order + DS and platform placement conventions | Placement consistent with the DS; primary action identifiable | V,S | As | moderate to major | ✓ |
+| CTA-03 | Target too small or too close | Measure the effective clickable box (padding included); minimum reference 24x24 CSS px or equivalent spacing (WCAG 2.2 SC 2.5.8, to be verified); touch platforms: OS guidelines (to be verified, often larger) | Threshold of the applicable requirement | S | A | major (touch) | ✓ |
+| CTA-04 | Icon misaligned within its button | Icon center vs box center and text baseline | Offset within tolerance | V,S | A | minor | |
+| CTA-05 | Incomprehensible disabled state | Is the reason exposed? Is there an alternative? `aria-disabled` vs `disabled` (focusability) | The user understands why and how to unlock it | C,H | As | moderate | |
+| CTA-06 | Double click or repeated submission | Fast double click and repeated Enter on a submission; count the requests | A single action; waiting feedback | C | A | major (critical for payment) | |
+| CTA-07 | Unprotected destructive action | List the irreversible actions | Proportionate confirmation or undo available | C,H | As | major | |
+| CTA-08 | Affordance (a link looks like text, a button like a label) | Visual review and hover and focus states | Interactive elements perceived as such | V,H | As | moderate | |
+| CTA-09 | Conflicting or undocumented keyboard shortcuts | List the shortcuts; conflicts with the browser, the OS or assistive technologies; single-key shortcuts can be turned off (WCAG SC 2.1.4, to be verified) | No conflict; discoverability | C | As | moderate | |
+| CTA-10 | Action priority (several competing primary buttons) | Count the primary variants per view | One primary action per context, unless justified | V | As | minor `[PREFERENCE]` unless DS | |
 
-## Formulaires (FRM)
+## Forms (FRM)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| FRM-01 | Champ sans label accessible ; placeholder utilisé comme label | Arbre d'accessibilité : nom de chaque champ ; présence d'un label visible | Label visible et nom accessible cohérents | S,A | A | majeure | ✓ |
-| FRM-02 | Aide et format attendus absents | Revue des champs à format (date, téléphone, IBAN...) | Format indiqué avant la saisie | H,V | As | modérée | |
-| FRM-03 | **Erreur mal signalée** (loin du champ, couleur seule, non annoncée, non liée) | Soumettre invalide : message près du champ, `aria-invalid`, lien `aria-describedby`, focus déplacé ou résumé, annonce (région live ou focus), icône ou texte en plus de la couleur | Erreur identifiée, décrite, liée, perceptible sans couleur, annoncée | C,A,V | A+As | majeure | ✓ |
-| FRM-04 | Perte des valeurs saisies (erreur serveur, retour arrière, rechargement, changement de taille) | Saisir, provoquer l'événement, comparer | Valeurs conservées (sauf champs sensibles, par choix documenté) | C | A | majeure | |
-| FRM-05 | Validation trop précoce ou agressive | Observer la validation à la frappe | Validation au blur ou à la soumission, sauf justification | C,H | As | modérée | |
-| FRM-06 | `autocomplete`, types d'entrée et `inputmode` | Vérifier les attributs sur les champs d'identité, adresse, paiement, OTP | Attributs pertinents | S | A | modérée | |
-| FRM-07 | Mot de passe : affichage, collage, gestionnaire | Bouton afficher/masquer, collage autorisé, `autocomplete=current-password/new-password` | Pas d'obstacle à la saisie (cf. WCAG 2.2 SC 3.3.8, à vérifier) | C,S | A | majeure | |
-| FRM-08 | Upload de fichier : formats, taille, progression, erreur, annulation | Fichiers valides, trop gros, mauvais type, réseau coupé | Feedback et récupération | C | As | modérée | |
-| FRM-09 | Saisie redondante | Parcours en plusieurs étapes | Pas de ressaisie inutile (WCAG SC 3.3.7, à vérifier) | C | As | modérée | |
-| FRM-10 | Sauvegarde, annulation et reprise d'un brouillon | Quitter au milieu, revenir | Comportement conforme aux attentes déclarées | C | As | modérée | |
-| FRM-11 | Masques de saisie bloquants | Collage, effacement, curseur au milieu | Pas de blocage | C | As | modérée | |
+| FRM-01 | Field without an accessible label; placeholder used as a label | Accessibility tree: name of each field; presence of a visible label | Visible label and accessible name consistent | S,A | A | major | ✓ |
+| FRM-02 | Missing help and expected format | Review of fields with a format (date, phone, IBAN...) | Format stated before input | H,V | As | moderate | |
+| FRM-03 | **Poorly reported error** (far from the field, color only, not announced, not linked) | Submit invalid data: message near the field, `aria-invalid`, `aria-describedby` link, focus moved or summary, announcement (live region or focus), icon or text in addition to color | Error identified, described, linked, perceivable without color, announced | C,A,V | A+As | major | ✓ |
+| FRM-04 | Loss of entered values (server error, back navigation, reload, resize) | Enter values, trigger the event, compare | Values preserved (except sensitive fields, by documented choice) | C | A | major | |
+| FRM-05 | Validation too early or too aggressive | Observe validation while typing | Validation on blur or on submit, unless justified | C,H | As | moderate | |
+| FRM-06 | `autocomplete`, input types and `inputmode` | Check the attributes on identity, address, payment and OTP fields | Relevant attributes | S | A | moderate | |
+| FRM-07 | Password: show, paste, password manager | Show/hide button, paste allowed, `autocomplete=current-password/new-password` | No obstacle to input (see WCAG 2.2 SC 3.3.8, to be verified) | C,S | A | major | |
+| FRM-08 | File upload: formats, size, progress, error, cancel | Valid files, too large, wrong type, network cut | Feedback and recovery | C | As | moderate | |
+| FRM-09 | Redundant entry | Multi-step flow | No unnecessary re-entry (WCAG SC 3.3.7, to be verified) | C | As | moderate | |
+| FRM-10 | Saving, cancelling and resuming a draft | Leave halfway, come back | Behavior matches the stated expectations | C | As | moderate | |
+| FRM-11 | Blocking input masks | Paste, delete, cursor in the middle | No blocking | C | As | moderate | |
 
-## Couleurs et médias (COL)
+## Color and media (COL)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| COL-01 | Information portée par la couleur seule | Revue des statuts, erreurs, liens dans le texte, légendes ; capture en niveaux de gris ou simulation de daltonisme | Second indicateur (texte, icône, motif) | V,H | As | majeure | ✓ |
-| COL-02 | Contraste des composants non textuels (bordures de champ, icônes porteuses de sens, focus) | Calcul ; référence 3:1 (WCAG SC 1.4.11, à vérifier) | Seuil de l'exigence | S | A | majeure | |
-| COL-03 | Thèmes clair et sombre ou contraste élevé incomplets | Captures dans chaque thème supporté ; `forced-colors: active` | Pas d'élément invisible ni de couleur codée en dur incohérente | V,S | A | majeure | |
-| COL-04 | Images manquantes, déformées ou mal recadrées | Statut réseau des images, `naturalWidth`, ratio affiché vs naturel, `object-fit` | Pas d'image cassée ; ratio respecté | S,V | A | modérée | |
-| COL-05 | Texte alternatif absent ou inadapté | `alt` présent ; décoratif (`alt=""`) vs informatif ; pertinence jugée | Alternative équivalente | A,H | As | majeure si informatif | |
-| COL-06 | Icônes seules incompréhensibles | Icônes sans libellé ; nom accessible | Libellé visible ou tooltip et nom accessible | V,A | As | modérée | |
-| COL-07 | Vidéo et audio : sous-titres, transcription, autoplay, contrôles | Recensement des médias | Alternatives et contrôle utilisateur | A,H | As | majeure si contenu essentiel | |
+| COL-01 | Information conveyed by color alone | Review of statuses, errors, links in text, legends; grayscale screenshot or color blindness simulation | Second indicator (text, icon, pattern) | V,H | As | major | ✓ |
+| COL-02 | Contrast of non-text components (field borders, meaningful icons, focus) | Calculation; reference 3:1 (WCAG SC 1.4.11, to be verified) | Threshold of the requirement | S | A | major | |
+| COL-03 | Incomplete light and dark themes or high contrast | Screenshots in each supported theme; `forced-colors: active` | No invisible element and no inconsistent hard-coded color | V,S | A | major | |
+| COL-04 | Missing, distorted or badly cropped images | Network status of images, `naturalWidth`, displayed vs natural ratio, `object-fit` | No broken image; ratio respected | S,V | A | moderate | |
+| COL-05 | Missing or unsuitable alternative text | `alt` present; decorative (`alt=""`) vs informative; relevance judged | Equivalent alternative | A,H | As | major if informative | |
+| COL-06 | Incomprehensible icon-only controls | Icons without a label; accessible name | Visible label or tooltip, and accessible name | V,A | As | moderate | |
+| COL-07 | Video and audio: captions, transcript, autoplay, controls | Inventory of the media | Alternatives and user control | A,H | As | major if the content is essential | |
 
-## Navigation et architecture (NAV)
+## Navigation and architecture (NAV)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| NAV-01 | Où suis-je ? (menu actif, titre de page, fil d'Ariane) | `aria-current`, `<title>` unique et descriptif, état visuel | Repérage clair | S,V | A | modérée | ✓ |
-| NAV-02 | Liens cassés, ancres mortes | Crawl du périmètre | Aucun lien mort | S | A | majeure | |
-| NAV-03 | Retour, historique, liens profonds | Recharger une URL interne, bouton retour après navigation et après filtre | État restauré ; pas d'écran blanc | C | A | majeure | |
-| NAV-04 | Recherche, filtres, pagination : état dans l'URL, reset, zéro résultat | Scénarios combinés | Comportement prévisible ; état vide utile | C | As | modérée | |
-| NAV-05 | Cohérence entre écrans (position de la navigation, terminologie) | Comparer les captures de plusieurs écrans | Cohérence (WCAG SC 3.2.3 et 3.2.4, à vérifier) | V | As | modérée | |
-| NAV-06 | Découvrabilité des actions essentielles (masquées dans un menu à 320 px) | Captures responsive + inventaire des actions | Actions essentielles accessibles à toutes les tailles | V,C | As | majeure | |
-| NAV-07 | Progression dans un flux multi-étapes | Indicateur d'étape, retour sans perte | Progression claire | V,C | As | modérée | |
+| NAV-01 | Where am I? (active menu, page title, breadcrumb) | `aria-current`, unique and descriptive `<title>`, visual state | Clear orientation | S,V | A | moderate | ✓ |
+| NAV-02 | Broken links, dead anchors | Crawl of the scope | No dead link | S | A | major | |
+| NAV-03 | Back, history, deep links | Reload an internal URL, back button after navigation and after filtering | State restored; no blank screen | C | A | major | |
+| NAV-04 | Search, filters, pagination: state in the URL, reset, zero results | Combined scenarios | Predictable behavior; useful empty state | C | As | moderate | |
+| NAV-05 | Consistency across screens (navigation position, terminology) | Compare screenshots of several screens | Consistency (WCAG SC 3.2.3 and 3.2.4, to be verified) | V | As | moderate | |
+| NAV-06 | Discoverability of essential actions (hidden in a menu at 320 px) | Responsive screenshots + inventory of actions | Essential actions reachable at every size | V,C | As | major | |
+| NAV-07 | Progress in a multi-step flow | Step indicator, going back without loss | Clear progress | V,C | As | moderate | |
 
-## Parcours et feedback (PAR)
+## User flows and feedback (PAR)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| PAR-01 | La tâche principale est-elle réalisable de bout en bout ? | Script du parcours (souris, puis clavier seul) | Succès observé | C | A | critique si échec | ✓ |
-| PAR-02 | Effort (étapes, champs, clics) disproportionné | Compter les étapes et comparer aux références | Pas d'étape superflue identifiée | H | As | `[PRÉFÉRENCE]`/modérée | |
-| PAR-03 | Feedback absent ou tardif après une action | Mesurer le délai entre l'action et le premier changement visible | Feedback perceptible rapidement (seuil projet) | C | A | modérée | |
-| PAR-04 | États d'attente, de succès et d'erreur non conçus | Forcer chaque état (mock réseau) | Chaque état a un rendu et un message utiles | C,V | A | majeure | |
-| PAR-05 | Erreurs non récupérables, impasses | Provoquer les erreurs, vérifier les issues | Toujours une issue (réessayer, revenir, contacter) | C | As | majeure | |
-| PAR-06 | Session expirée et interruption (onglet en arrière-plan, perte réseau, appel) | Simuler l'expiration et la mise en arrière-plan | Message clair ; données préservées si possible | C | As | majeure | |
-| PAR-08 | Action sans effet (bouton mort) | Clic puis observation : DOM, URL, défilement, requêtes, nouvelle fenêtre (`play_scenarios.py`) | Toute action produit un effet ou un retour perceptible | C | A | majeure | |
-| PAR-07 | Confirmation disproportionnée (trop ou pas assez) | Revue | Proportionnée au risque | H | H | `[PRÉFÉRENCE]`/modérée | |
+| PAR-01 | Can the main task be completed end to end? | Scripted user flow (mouse, then keyboard only) | Success observed | C | A | critical on failure | ✓ |
+| PAR-02 | Disproportionate effort (steps, fields, clicks) | Count the steps and compare with the references | No superfluous step identified | H | As | `[PREFERENCE]`/moderate | |
+| PAR-03 | Missing or late feedback after an action | Measure the delay between the action and the first visible change | Feedback perceptible quickly (project threshold) | C | A | moderate | |
+| PAR-04 | Loading, success and error states not designed | Force each state (network mock) | Each state has a useful rendering and message | C,V | A | major | |
+| PAR-05 | Unrecoverable errors, dead ends | Trigger the errors, check the ways out | Always a way out (retry, go back, contact) | C | As | major | |
+| PAR-06 | Expired session and interruption (background tab, network loss, call) | Simulate expiry and backgrounding | Clear message; data preserved if possible | C | As | major | |
+| PAR-08 | Action with no effect (dead button) | Click then observe: DOM, URL, scrolling, requests, new window (`play_scenarios.py`) | Every action produces a perceptible effect or response | C | A | major | |
+| PAR-07 | Disproportionate confirmation (too much or too little) | Review | Proportionate to the risk | H | H | `[PREFERENCE]`/moderate | |
 
-## Accessibilité (ACC)
+## Accessibility (ACC)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| ACC-01 | Règles automatisées (moteur de type axe-core ou équivalent) | Exécution sur chaque état capturé | 0 violation sérieuse ou critique ; les autres sont triées | S | A | selon la règle | ✓ |
-| ACC-02 | Navigation au clavier complète | Tab, Maj+Tab, Entrée, Espace, flèches dans les widgets composites, Échap | Toutes les fonctions atteignables et activables | C,A | A | critique si une action essentielle est inatteignable | ✓ |
-| ACC-03 | **Focus piégé** | Tabuler N fois (N = nombre d'éléments focalisables + 5) et vérifier la sortie de chaque composant ; une modale doit retenir le focus **et** proposer Échap ou fermer | Aucun piège hors modale ; modale fermable (WCAG SC 2.1.2, à vérifier) | C,A | A | critique | ✓ |
-| ACC-04 | Focus visible et ordre logique | Capture de chaque arrêt de focus ; contraste de l'indicateur ; ordre vs ordre visuel | Indicateur visible ; ordre cohérent | V,C,A | A+As | majeure | ✓ |
-| ACC-05 | Noms, rôles et états accessibles | Arbre d'accessibilité : bouton sans nom, rôle ARIA erroné, `aria-expanded` ou `aria-selected` non synchronisés | Exposition correcte | S,A | A | majeure | ✓ |
-| ACC-06 | Annonces dynamiques (toasts, résultats, erreurs) | Régions live ou `role=status/alert` ; déclenchement effectif | Changements importants annoncés (WCAG SC 4.1.3, à vérifier) | S,A | As | majeure | |
-| ACC-07 | Zoom 200 % et texte agrandi | Zoom navigateur 200 % ; taille de police de base agrandie | Pas de perte de contenu ni de fonction (SC 1.4.4, à vérifier) | V,S | A | majeure | |
-| ACC-08 | Reflow à 320 px CSS de largeur (équivaut à 1280 px à 400 %) | Viewport 320 × 256 pour le contenu à défilement horizontal, 320 de large en général | Pas de scroll 2D, sauf contenus exemptés (SC 1.4.10, à vérifier) | S,V | A | majeure | |
-| ACC-09 | Gestes complexes ou glisser-déposer sans alternative | Recenser swipe, pinch, drag | Alternative à pointeur unique (SC 2.5.1 et 2.5.7, à vérifier) | C | As | majeure | |
-| ACC-10 | Landmarks et lien d'évitement | `main`, `nav`, `header`, skip link fonctionnel | Structure présente | S | A | modérée | |
-| ACC-11 | **Test avec lecteur d'écran réel** (NVDA, JAWS, VoiceOver, TalkBack) | Parcours principal au lecteur d'écran | Restitution compréhensible | A,H | **H** (assisté si un pilote automatisé existe) | - | |
-| ACC-12 | Langue de la page et des passages | `lang` présent et correct | Prononciation correcte | S | A | modérée | |
+| ACC-01 | Automated rules (axe-core type engine or equivalent) | Run on every captured state | 0 serious or critical violations; the others are triaged | S | A | depends on the rule | ✓ |
+| ACC-02 | Full keyboard navigation | Tab, Shift+Tab, Enter, Space, arrows in composite widgets, Escape | Every function reachable and operable | C,A | A | critical if an essential action is unreachable | ✓ |
+| ACC-03 | **Focus trap** | Tab N times (N = number of focusable elements + 5) and check the exit from each component; a modal must keep the focus **and** offer Escape or a close control | No trap outside modals; modal can be closed (WCAG SC 2.1.2, to be verified) | C,A | A | critical | ✓ |
+| ACC-04 | Visible focus and logical order | Screenshot of each focus stop; indicator contrast; order vs visual order | Visible indicator; consistent order | V,C,A | A+As | major | ✓ |
+| ACC-05 | Accessible names, roles and states | Accessibility tree: button without a name, wrong ARIA role, `aria-expanded` or `aria-selected` out of sync | Correct exposure | S,A | A | major | ✓ |
+| ACC-06 | Dynamic announcements (toasts, results, errors) | Live regions or `role=status/alert` elements; actual triggering | Important changes announced (WCAG SC 4.1.3, to be verified) | S,A | As | major | |
+| ACC-07 | 200% zoom and enlarged text | Browser zoom at 200%; enlarged base font size | No loss of content or function (SC 1.4.4, to be verified) | V,S | A | major | |
+| ACC-08 | Reflow at 320 CSS px width (equivalent to 1280 px at 400%) | 320 x 256 viewport for horizontally scrolling content, 320 wide in general | No 2D scrolling, except exempt content (SC 1.4.10, to be verified) | S,V | A | major | |
+| ACC-09 | Complex gestures or drag and drop without an alternative | List swipe, pinch, drag | Single-pointer alternative (SC 2.5.1 and 2.5.7, to be verified) | C | As | major | |
+| ACC-10 | Landmarks and skip link | `main`, `nav`, `header`, working skip link | Structure present | S | A | moderate | |
+| ACC-11 | **Test with a real screen reader** (NVDA, JAWS, VoiceOver, TalkBack) | Main user flow with the screen reader | Understandable output | A,H | **H** (assisted if an automated driver exists) | - | |
+| ACC-12 | Language of the page and of passages | `lang` present and correct | Correct pronunciation | S | A | moderate | |
 
-Règle : ACC-11 n'est **jamais** marqué `réussi` sur la seule base de l'arbre d'accessibilité. Sans test réel, statut `non vérifié : nécessite lecteur d'écran`.
+Rule: ACC-11 is **never** marked `passed` on the basis of the accessibility tree alone. Without a real test, the status is `not_verified: requires a screen reader`.
 
-## Mouvement (MOT)
+## Motion (MOT)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| MOT-01 | `prefers-reduced-motion` ignoré | Émuler `reduce` ; comparer les animations actives | Animations non essentielles supprimées ou réduites | C,S | A | majeure | |
-| MOT-02 | Clignotements dangereux | Recenser les animations à fréquence élevée ; référence : pas plus de 3 flashs par seconde (SC 2.3.1, à vérifier) | Conforme | V,C | As | critique | |
-| MOT-03 | Contenu animé ou défilant sans pause | Carrousels, auto-play > 5 s | Pause, arrêt ou masquage (SC 2.2.2, à vérifier) | C | As | majeure | |
-| MOT-04 | Transition qui casse l'état (focus perdu, double rendu, saut) | Enregistrer la transition (vidéo ou trace) ; vérifier le focus et le contenu après | Transition sans perte d'état | C | As | modérée | |
-| MOT-05 | Durées et easings incohérents avec le DS | Comparer aux tokens de mouvement | Conforme au DS | S | A | mineure `[PRÉFÉRENCE]` | |
+| MOT-01 | `prefers-reduced-motion` ignored | Emulate `reduce` mode; compare the active animations | Non-essential animations removed or reduced | C,S | A | major | |
+| MOT-02 | Dangerous flashing | List high-frequency animations; reference: no more than 3 flashes per second (SC 2.3.1, to be verified) | Compliant | V,C | As | critical | |
+| MOT-03 | Animated or scrolling content without pause | Carousels, autoplay > 5 s | Pause, stop or hide (SC 2.2.2, to be verified) | C | As | major | |
+| MOT-04 | Transition that breaks state (lost focus, double render, jump) | Record the transition (video or trace); check focus and content afterwards | Transition without state loss | C | As | moderate | |
+| MOT-05 | Durations and easings inconsistent with the DS | Compare with the motion tokens | Consistent with the DS | S | A | minor `[PREFERENCE]` | |
 
-## Données complexes (DAT)
+## Complex data (DAT)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| DAT-01 | Tableau : en-têtes, associations, tri annoncé | `th`, `scope`, `aria-sort` | Structure exposée | S,A | A | majeure | |
-| DAT-02 | Tableau sur mobile (débordement, colonnes essentielles masquées) | 320 à 430 px | Stratégie explicite (scroll conteneurisé accessible, empilement, priorisation) | V,S | As | majeure | |
-| DAT-03 | Graphique : légende, unités, axes, arrondis cohérents | Revue et comparaison avec les données source | Lecture non ambiguë | V,H | As | modérée | |
-| DAT-04 | Alternative accessible aux visualisations | Tableau de données, résumé textuel | Présente | A | As | majeure si information essentielle | |
-| DAT-05 | Valeurs manquantes, nulles, extrêmes ; grands volumes (10 000 lignes) | Fixtures `empty`, `null`, `huge`, `negative` | Rendu sain ; performance acceptable ; pas de « NaN » ou « undefined » affiché | V,C | A | majeure | |
-| DAT-06 | Sélection multiple, actions de masse | Sélectionner, désélectionner, tout sélectionner sur plusieurs pages | État clair et cohérent | C | As | modérée | |
+| DAT-01 | Table: headers, associations, announced sorting | `th`, `scope`, `aria-sort` | Structure exposed | S,A | A | major | |
+| DAT-02 | Table on mobile (overflow, essential columns hidden) | 320 to 430 px | Explicit strategy (accessible contained scroll, stacking, prioritization) | V,S | As | major | |
+| DAT-03 | Chart: consistent legend, units, axes, rounding | Review and comparison with the source data | Unambiguous reading | V,H | As | moderate | |
+| DAT-04 | Accessible alternative to visualizations | Data table, text summary | Present | A | As | major if the information is essential | |
+| DAT-05 | Missing, null, extreme values; large volumes (10,000 rows) | Fixtures `empty`, `null`, `huge`, `negative` | Sound rendering; acceptable performance; no "NaN" or "undefined" displayed | V,C | A | major | |
+| DAT-06 | Multiple selection, bulk actions | Select, deselect, select all across several pages | Clear and consistent state | C | As | moderate | |
 
-## Localisation (LOC) : si plusieurs langues ou locales sont pertinentes
+## Localization (LOC): if several languages or locales are relevant
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| LOC-01 | **Traduction plus longue** qui déborde | Langue cible réelle la plus longue et pseudo-localisation (+30 à 40 %, accents, délimiteurs `[ ]`) | Pas de débordement ni de rognage | V,S | A | majeure | |
-| LOC-02 | Chaînes non traduites ou concaténées | Pseudo-locale : repérer le texte sans délimiteurs | Tout est externalisé | S | A | modérée | |
-| LOC-03 | Pluriels, genres | Valeurs 0, 1, 2, 5, 21 selon les règles CLDR de la langue | Formes correctes | V | As | modérée | |
-| LOC-04 | Dates, heures, fuseaux, nombres, devises | Locales cibles ; fuseau différent de celui du serveur | Formats locaux ; fuseau explicite si ambigu | V | A | modérée à majeure (finance) | |
-| LOC-05 | Écritures non latines (CJK, arabe, devanagari) : polices, hauteur de ligne | Fixtures multiscripts | Glyphes rendus ; pas de rognage vertical | V | A | majeure si langue supportée | |
-| LOC-06 | Droite-gauche (RTL) et bidirectionnel | `dir=rtl` ; propriétés logiques CSS ; icônes directionnelles en miroir | Mise en page en miroir correcte | V,S | As | majeure si RTL supporté | |
+| LOC-01 | **Longer translation** that overflows | Longest real target language and pseudo-localization (+30 to 40%, accents, `[ ]` delimiters) | No overflow or clipping | V,S | A | major | |
+| LOC-02 | Untranslated or concatenated strings | Pseudo-locale: spot text without delimiters | Everything is externalized | S | A | moderate | |
+| LOC-03 | Plurals, genders | Values 0, 1, 2, 5, 21 according to the language's CLDR rules | Correct forms | V | As | moderate | |
+| LOC-04 | Dates, times, time zones, numbers, currencies | Target locales; time zone different from the server's | Local formats; explicit time zone if ambiguous | V | A | moderate to major (finance) | |
+| LOC-05 | Non-Latin scripts (CJK, Arabic, Devanagari): fonts, line height | Multi-script fixtures | Glyphs rendered; no vertical clipping | V | A | major if the language is supported | |
+| LOC-06 | Right-to-left (RTL) and bidirectional | `dir=rtl`; CSS logical properties; directional icons mirrored | Correct mirrored layout | V,S | As | major if RTL is supported | |
 
-## Robustesse et compatibilité (ROB)
+## Robustness and compatibility (ROB)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| ROB-01 | Erreurs console et exceptions non gérées pendant les parcours | Journal console et réseau | Aucune erreur nouvelle liée au périmètre | S | A | majeure | ✓ |
-| ROB-02 | Navigateurs cibles | Moteurs Chromium, WebKit et Gecko selon `browserslist` ou la cible déclarée | Rendu et fonctions équivalents | V,C | A | majeure | |
-| ROB-03 | Modes d'entrée : souris, tactile, clavier, hybrides | `pointer: coarse/fine`, `hover: none` ; vérifier qu'aucune fonction ne dépend du survol seul | Fonctionnel dans chaque mode | C | A | majeure | |
-| ROB-04 | Réseau lent, interrompu, reprise | Bridage réseau (profil lent), mode hors ligne en cours de parcours | Indicateurs, messages, reprise | C | A | majeure | |
-| ROB-05 | Chargement partiel, service indisponible (API en 500 ou timeout) | Mock d'erreurs par endpoint | Dégradation gracieuse ; pas d'écran blanc | C | A | majeure | |
-| ROB-06 | Orientation et redimensionnement **en cours d'usage** | Changer d'orientation ou de taille avec un formulaire rempli, une modale ouverte, un scroll avancé | État, focus et saisie conservés | C | A | majeure | |
+| ROB-01 | Console errors and unhandled exceptions during user flows | Console and network log | No new error related to the scope | S | A | major | ✓ |
+| ROB-02 | Target browsers | Chromium, WebKit and Gecko engines according to `browserslist` or the declared target | Equivalent rendering and functions | V,C | A | major | |
+| ROB-03 | Input modes: mouse, touch, keyboard, hybrid | `pointer: coarse/fine`, `hover: none`; check that no function depends on hover alone | Functional in each mode | C | A | major | |
+| ROB-04 | Slow, interrupted, resumed network | Network throttling (slow profile), offline mode during a user flow | Indicators, messages, recovery | C | A | major | |
+| ROB-05 | Partial loading, unavailable service (API returning 500 or timing out) | Error mocks per endpoint | Graceful degradation; no blank screen | C | A | major | |
+| ROB-06 | Orientation change and resizing **during use** | Change orientation or size with a filled form, an open modal, a scrolled page | State, focus and input preserved | C | A | major | |
 
-## Performance perçue (PRF)
+## Perceived performance (PRF)
 
-Une mesure instrumentée (API Performance, traces, métriques de type Core Web Vitals) se distingue d'une impression (« semble lent »). Le rapport indique laquelle des deux il s'agit.
+An instrumented measurement (Performance API, traces, Core Web Vitals type metrics) is distinct from an impression ("feels slow"). The report states which of the two it is.
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| PRF-01 | Délai de réponse à l'interaction | Mesure du délai entre l'entrée et le rendu suivant (instrumentée) | Seuil projet ou référence sourcée | C | A | modérée | |
-| PRF-02 | Squelettes et indicateurs de progression | Présence et cohérence avec la forme finale (pas de saut) | Conforme | V,C | As | modérée | |
-| PRF-03 | Blocage du thread principal (tâches longues) | Trace de performance | Pas de gel perceptible pendant les interactions du parcours | C | A | modérée | |
-| PRF-04 | Stabilité au chargement | Cf. GEO-09 | - | | | | |
+| PRF-01 | Interaction response delay | Measure the delay between input and the next render (instrumented) | Project threshold or sourced reference | C | A | moderate | |
+| PRF-02 | Skeletons and progress indicators | Presence and consistency with the final shape (no jump) | Compliant | V,C | As | moderate | |
+| PRF-03 | Main thread blocking (long tasks) | Performance trace | No perceptible freeze during the user flow interactions | C | A | moderate | |
+| PRF-04 | Stability on load | See GEO-09 | - | | | | |
 
-## Permissions et erreurs (PRM)
+## Permissions and errors (PRM)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| PRM-01 | Permission demandée hors contexte (dès le chargement) | Observer le moment de la demande | Demande liée à une action explicite, avec explication préalable | C,H | As | modérée | |
-| PRM-02 | Refus de permission | Émuler un refus (géolocalisation, caméra, notifications) | Message exploitable, alternative, pas d'impasse | C | A | majeure | |
-| PRM-03 | Permission révoquée en cours d'usage | Révoquer puis réutiliser | Détection et message | C | As | modérée | |
-| PRM-04 | Fonction inaccessible (droits insuffisants) | Compte de test à rôle limité | Explication et chemin d'obtention, pas de bouton mort silencieux | C | As | modérée | |
-| PRM-05 | Possibilité de réessayer après une erreur | Provoquer l'erreur | Action de réessai disponible | C | A | modérée | |
+| PRM-01 | Permission requested out of context (right on load) | Observe when the request happens | Request tied to an explicit action, with a prior explanation | C,H | As | moderate | |
+| PRM-02 | Permission denied | Emulate a denial (geolocation, camera, notifications) | Actionable message, alternative, no dead end | C | A | major | |
+| PRM-03 | Permission revoked during use | Revoke then use again | Detection and message | C | As | moderate | |
+| PRM-04 | Inaccessible function (insufficient rights) | Test account with a limited role | Explanation and a way to obtain access, no silent dead button | C | As | moderate | |
+| PRM-05 | Ability to retry after an error | Trigger the error | Retry action available | C | A | moderate | |
 
-## Design system et régressions (DS)
+## Design system and regressions (DS)
 
-| ID | Défaut recherché | Méthode | Attendu | Nat. | Auto. | Sév. ind. | F |
+| ID | Defect sought | Method | Expected | Nat. | Auto. | Ind. sev. | F |
 |---|---|---|---|---|---|---|---|
-| DS-01 | Valeurs codées en dur au lieu des tokens | Analyse statique du diff (couleurs hex, px hors échelle) et styles calculés hors palette | Usage des tokens | S | A | modérée | ✓ |
-| DS-02 | Composant réimplémenté au lieu d'être réutilisé | Revue du diff vs catalogue de composants | Réutilisation | S,H | As | modérée | |
-| DS-03 | Variantes incohérentes (même rôle, styles différents) | Regrouper les éléments par rôle et comparer les styles | Cohérence | V,S | As | modérée | |
-| DS-04 | Terminologie incohérente | Glossaire projet vs libellés | Cohérence | H | As | mineure | |
-| DS-05 | Régression visuelle hors périmètre | Diff visuel des écrans du rayon d'impact (avant/après) | Différences toutes expliquées | V | A | selon le défaut | |
-| DS-06 | Propagation de la correction | Revérifier toutes les instances du composant ou token corrigé | Instances conformes | V,S | A | majeure si une instance casse | |
+| DS-01 | Hard-coded values instead of tokens | Static analysis of the diff (hex colors, px off the scale) and computed styles outside the palette | Tokens used | S | A | moderate | ✓ |
+| DS-02 | Component reimplemented instead of reused | Review of the diff against the component catalog | Reuse | S,H | As | moderate | |
+| DS-03 | Inconsistent variants (same role, different styles) | Group elements by role and compare the styles | Consistency | V,S | As | moderate | |
+| DS-04 | Inconsistent terminology | Project glossary vs labels | Consistency | H | As | minor | |
+| DS-05 | Visual regression outside the scope | Visual diff of the screens in the impact radius (before/after) | Every difference explained | V | A | depends on the defect | |
+| DS-06 | Propagation of the fix | Re-verify every instance of the fixed component or token | Instances compliant | V,S | A | major if an instance breaks | |
 
 ---
 
 
-## Environnement mobile (ENV)
+## Mobile environment (ENV)
 
-| ID | Contrôle | Méthode | Limite |
+| ID | Control | Method | Limit |
 |---|---|---|---|
-| ENV-01 | Safe areas et encoches | Émulation des insets, usage de `env(safe-area-inset-*)` et `viewport-fit=cover` | Appareil réel pour confirmer |
-| ENV-02 | Clavier virtuel masquant une action | `resize_probe.py --mode keyboard` : champ focalisé et action principale atteignables, non recouverts, sans défilement seulement programmatique | Émulation resizes-content. Le clavier natif, le mode resizes-visual et les barres système demandent un émulateur d'OS ou un appareil. |
-| ENV-03 | Barres du navigateur mobile | Recherche de `100vh` sur des éléments plein écran. Préférer `svh`, `lvh` et `dvh` selon l'intention. | Émulateur d'OS recommandé |
-| ENV-04 | Modes d'entrée | Viewports `pointer: coarse` et `fine`, clavier seul. Aucune fonction ne doit dépendre du survol seul. | |
-| ENV-05 | Préférences utilisateur | `--theme dark`, `--reduced-motion reduce`, `--forced-colors`, contraste élevé si le moteur le permet | |
-| ENV-06 | Zoom et taille du texte | `--zoom 2` (200 %), `--zoom 4` avec 1280 px (reflow), police de base agrandie via `eval` | |
+| ENV-01 | Safe areas and notches | Emulation of the insets, use of `env(safe-area-inset-*)` and `viewport-fit=cover` | Real device needed to confirm |
+| ENV-02 | Virtual keyboard hiding an action | `resize_probe.py --mode keyboard` checks that the focused field and the primary action are reachable, not covered, and not reachable only by programmatic scrolling | Emulation of resizes-content. The native keyboard, the resizes-visual mode and the system bars require an OS emulator or a device. |
+| ENV-03 | Mobile browser bars | Look for `100vh` on full-screen elements. Prefer `svh`, `lvh` and `dvh` depending on the intent. | OS emulator recommended |
+| ENV-04 | Input modes | `pointer: coarse` and `fine` viewports, keyboard only. No function may depend on hover alone. | |
+| ENV-05 | User preferences | `--theme dark`, `--reduced-motion reduce`, `--forced-colors`, high contrast if the engine supports it | |
+| ENV-06 | Zoom and text size | `--zoom 2` (200%), `--zoom 4` with 1280 px (reflow), enlarged base font via `eval` | |

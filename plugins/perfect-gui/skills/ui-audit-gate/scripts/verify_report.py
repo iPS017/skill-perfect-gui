@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Vérifie la cohérence d'un rapport d'audit, calcule la décision (reference/validation-gate.md)
-et produit report.md.
+"""Check the consistency of an audit report, compute the decision (reference/validation-gate.md)
+and produce report.md.
 
-Codes de sortie : 0 cohérent, 1 incohérences, 2 fichiers manquants.
+Exit codes: 0 consistent, 1 inconsistencies, 2 missing files.
 
-Exemples :
+Examples:
   python3 verify_report.py .ui-audit/RUN-x
   python3 verify_report.py .ui-audit/RUN-x --apply --render
 """
@@ -17,21 +17,21 @@ from urllib.parse import urlparse
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from _common import load_config, now_iso, read_json, write_json  # noqa: E402
 
-DECISIONS = ["VALIDEE_PROTOCOLE_COMPLET", "VALIDEE_PERIMETRE_TESTE", "VALIDEE_AVEC_EXCEPTIONS", "NON_VALIDEE", "VALIDATION_LIMITEE"]
+DECISIONS = ["VALIDATED_FULL_PROTOCOL", "VALIDATED_TESTED_SCOPE", "VALIDATED_WITH_EXCEPTIONS", "NOT_VALIDATED", "LIMITED_VALIDATION"]
 DECISION_LABELS = {
-    "VALIDEE_PROTOCOLE_COMPLET": "VALIDÉE : protocole complet",
-    "VALIDEE_PERIMETRE_TESTE": "VALIDÉE : périmètre testé seulement",
-    "VALIDEE_AVEC_EXCEPTIONS": "VALIDÉE avec exceptions acceptées",
-    "NON_VALIDEE": "NON VALIDÉE",
-    "VALIDATION_LIMITEE": "VALIDATION LIMITÉE",
+    "VALIDATED_FULL_PROTOCOL": "VALIDATED: full protocol",
+    "VALIDATED_TESTED_SCOPE": "VALIDATED: tested scope only",
+    "VALIDATED_WITH_EXCEPTIONS": "VALIDATED with accepted exceptions",
+    "NOT_VALIDATED": "NOT VALIDATED",
+    "LIMITED_VALIDATION": "LIMITED VALIDATION",
 }
-STATUSES = {"reussi", "echoue", "non_verifie", "non_applicable"}
-REASON_TYPES = {"technique", "humain", "appareil_reel", "hors_perimetre", "autre"}
-SEVERITIES = {"critique", "majeure", "moderee", "mineure"}
-DEFECT_STATUSES = {"ouvert", "corrige", "echoue_non_resolu", "accepte_exception"}
-OPEN_STATUSES = {"ouvert", "echoue_non_resolu", "accepte_exception"}
-NATURES = {"EXIGENCE", "HYPOTHESE", "PREFERENCE"}
-DEFECT_FIELDS = ["id", "titre", "controle", "severite", "priorite", "confiance", "nature", "statut", "attendu", "observe", "preuves"]
+STATUSES = {"passed", "failed", "not_verified", "not_applicable"}
+REASON_TYPES = {"technical", "human", "real_device", "out_of_scope", "other"}
+SEVERITIES = {"critical", "major", "moderate", "minor"}
+FINDING_STATUSES = {"open", "fixed", "failed_unresolved", "accepted_exception"}
+OPEN_STATUSES = {"open", "failed_unresolved", "accepted_exception"}
+NATURES = {"REQUIREMENT", "HYPOTHESIS", "PREFERENCE"}
+FINDING_FIELDS = ["id", "title", "control", "severity", "priority", "confidence", "nature", "status", "expected", "observed", "evidence"]
 
 
 def normalize(url):
@@ -39,16 +39,20 @@ def normalize(url):
     return f"{parsed.scheme}://{parsed.netloc.lower()}{parsed.path.rstrip('/')}" + (f"?{parsed.query}" if parsed.query else "")
 
 
+def normalize_nature(value):
+    return str(value or "").strip().strip("[]").strip().upper()
+
+
 def exists(run, path):
     p = Path(path)
     return (p if p.is_absolute() else run / p).exists()
 
 
-def load_defects(run, report):
+def load_findings(run, report):
     merged = {}
-    for defect in report.get("defauts", []):
-        if isinstance(defect, dict) and defect.get("id"):
-            merged[defect["id"]] = defect
+    for finding in report.get("findings", []):
+        if isinstance(finding, dict) and finding.get("id"):
+            merged[finding["id"]] = finding
     for path in sorted((run / "findings").glob("*.json")) if (run / "findings").exists() else []:
         data = read_json(path)
         if isinstance(data, dict) and data.get("id"):
@@ -60,113 +64,113 @@ def verify(run):
     run = Path(run)
     report = read_json(run / "report.json")
     if report is None:
-        return {"status": "missing", "errors": [f"report.json absent dans {run}"]}
+        return {"status": "missing", "errors": [f"report.json missing in {run}"]}
     errors, warnings, blocking, downgrades = [], [], [], []
     levels = load_config("levels.json")
-    fundamentals = set(levels["fondamentaux"])
-    mode = report.get("mode", "complet")
-    limited = mode in ("maquette", "sans_execution")
+    fundamentals = set(levels["fundamental"])
+    mode = report.get("mode", "full")
+    limited = mode in ("mockup", "no_execution")
 
     controls = {}
-    for control in report.get("controles", []):
+    for control in report.get("controls", []):
         cid = control.get("id")
         if not cid:
-            errors.append("Contrôle sans identifiant")
+            errors.append("Control without an id")
             continue
         if cid in controls:
-            warnings.append(f"{cid} listé plusieurs fois : la dernière entrée est retenue")
+            warnings.append(f"{cid} listed several times: the last entry is kept")
         controls[cid] = control
-        status = control.get("statut")
+        status = control.get("status")
         if status not in STATUSES:
-            errors.append(f"{cid} : statut invalide {status!r} (attendu {sorted(STATUSES)})")
+            errors.append(f"{cid}: invalid status {status!r} (expected {sorted(STATUSES)})")
             continue
-        if status == "reussi":
-            proofs = control.get("preuves") or []
+        if status == "passed":
+            proofs = control.get("evidence") or []
             if not proofs:
-                errors.append(f"{cid} : 'reussi' sans preuve")
+                errors.append(f"{cid}: 'passed' without evidence")
             for proof in proofs:
                 if not exists(run, proof):
-                    errors.append(f"{cid} : preuve introuvable {proof}")
-        if status in ("non_verifie", "non_applicable") and not control.get("raison"):
-            errors.append(f"{cid} : '{status}' sans raison")
-        if status == "non_verifie" and control.get("raison_type") not in REASON_TYPES:
-            errors.append(f"{cid} : raison_type manquant ou invalide (attendu {sorted(REASON_TYPES)})")
+                    errors.append(f"{cid}: evidence not found {proof}")
+        if status in ("not_verified", "not_applicable") and not control.get("reason"):
+            errors.append(f"{cid}: '{status}' without a reason")
+        if status == "not_verified" and control.get("reason_type") not in REASON_TYPES:
+            errors.append(f"{cid}: reason_type missing or invalid (expected {sorted(REASON_TYPES)})")
 
-    defects = load_defects(run, report)
-    defect_controls = {d.get("controle") for d in defects}
+    findings = load_findings(run, report)
+    finding_controls = {f.get("control") for f in findings}
     for cid, control in controls.items():
-        if control.get("statut") == "echoue" and cid not in defect_controls:
-            errors.append(f"{cid} : 'echoue' sans fiche de défaut qui le référence")
+        if control.get("status") == "failed" and cid not in finding_controls:
+            errors.append(f"{cid}: 'failed' without a finding that references it")
 
     exceptions_used = []
-    for defect in defects:
-        did = defect.get("id", "?")
-        missing = [f for f in DEFECT_FIELDS if defect.get(f) in (None, "", [])]
+    for finding in findings:
+        fid = finding.get("id", "?")
+        missing = [f for f in FINDING_FIELDS if finding.get(f) in (None, "", [])]
         if missing:
-            errors.append(f"{did} : champs manquants {missing}")
-        if defect.get("severite") not in SEVERITIES:
-            errors.append(f"{did} : sévérité invalide {defect.get('severite')!r}")
-        if defect.get("statut") not in DEFECT_STATUSES:
-            errors.append(f"{did} : statut invalide {defect.get('statut')!r}")
-        nature = str(defect.get("nature", "")).strip("[]").upper().replace("È", "E").replace("É", "E")
+            errors.append(f"{fid}: missing fields {missing}")
+        if finding.get("severity") not in SEVERITIES:
+            errors.append(f"{fid}: invalid severity {finding.get('severity')!r}")
+        if finding.get("status") not in FINDING_STATUSES:
+            errors.append(f"{fid}: invalid status {finding.get('status')!r}")
+        nature = normalize_nature(finding.get("nature"))
         if nature not in NATURES:
-            errors.append(f"{did} : nature invalide {defect.get('nature')!r} (EXIGENCE, HYPOTHESE, PREFERENCE)")
-        for proof in defect.get("preuves") or []:
+            errors.append(f"{fid}: invalid nature {finding.get('nature')!r} (REQUIREMENT, HYPOTHESIS, PREFERENCE)")
+        for proof in finding.get("evidence") or []:
             if not exists(run, proof):
-                errors.append(f"{did} : preuve introuvable {proof}")
-        status = defect.get("statut")
-        if status == "corrige":
-            retest = defect.get("retest") or {}
-            if retest.get("statut") != "reussi" or not retest.get("preuves"):
-                errors.append(f"{did} : 'corrige' sans retest réussi et prouvé")
-            for proof in retest.get("preuves") or []:
+                errors.append(f"{fid}: evidence not found {proof}")
+        status = finding.get("status")
+        if status == "fixed":
+            retest = finding.get("retest") or {}
+            if retest.get("status") != "passed" or not retest.get("evidence"):
+                errors.append(f"{fid}: 'fixed' without a passed retest backed by evidence")
+            for proof in retest.get("evidence") or []:
                 if not exists(run, proof):
-                    errors.append(f"{did} : preuve de retest introuvable {proof}")
-        if status == "echoue_non_resolu" and not (defect.get("cause_blocage") and defect.get("action_requise")):
-            errors.append(f"{did} : 'echoue_non_resolu' exige cause_blocage et action_requise")
+                    errors.append(f"{fid}: retest evidence not found {proof}")
+        if status == "failed_unresolved" and not (finding.get("blocking_cause") and finding.get("required_action")):
+            errors.append(f"{fid}: 'failed_unresolved' requires blocking_cause and required_action")
         if status not in OPEN_STATUSES:
             continue
-        severity = defect.get("severite")
-        if severity == "critique":
-            blocking.append(f"B1 : défaut critique ouvert {did}")
-            if status == "accepte_exception":
-                errors.append(f"{did} : une exception ne peut pas couvrir un défaut critique")
-        elif severity == "majeure" and nature == "EXIGENCE":
-            exception = defect.get("exception") or {}
-            valid = status == "accepte_exception" and all(exception.get(k) for k in ("acceptee_par", "date", "citation"))
+        severity = finding.get("severity")
+        if severity == "critical":
+            blocking.append(f"B1: open critical finding {fid}")
+            if status == "accepted_exception":
+                errors.append(f"{fid}: an exception cannot cover a critical finding")
+        elif severity == "major" and nature == "REQUIREMENT":
+            exception = finding.get("exception") or {}
+            valid = status == "accepted_exception" and all(exception.get(k) for k in ("accepted_by", "date", "quote"))
             if valid:
-                exceptions_used.append(did)
+                exceptions_used.append(fid)
             else:
-                blocking.append(f"B2 : défaut majeur [EXIGENCE] ouvert sans exception valide {did}")
-                if status == "accepte_exception":
-                    errors.append(f"{did} : exception incomplète (acceptee_par, date, citation de l'utilisateur)")
-        if defect.get("introduit_par_correction"):
-            blocking.append(f"B6 : régression introduite par une correction, ouverte {did}")
+                blocking.append(f"B2: open major [REQUIREMENT] finding without a valid exception {fid}")
+                if status == "accepted_exception":
+                    errors.append(f"{fid}: incomplete exception (accepted_by, date, quote from the user)")
+        if finding.get("introduced_by_fix"):
+            blocking.append(f"B6: open regression introduced by a fix {fid}")
 
     for cid in sorted(fundamentals):
         control = controls.get(cid)
         if control is None:
-            blocking.append(f"B3 : contrôle fondamental absent du rapport {cid}")
-        elif control.get("statut") == "non_verifie" and control.get("raison_type") not in ("technique", "humain", "appareil_reel"):
-            blocking.append(f"B3 : contrôle fondamental non vérifié sans raison technique {cid}")
+            blocking.append(f"B3: fundamental control missing from the report {cid}")
+        elif control.get("status") == "not_verified" and control.get("reason_type") not in ("technical", "human", "real_device"):
+            blocking.append(f"B3: fundamental control not verified without a technical reason {cid}")
 
     if not limited:
         main_path = controls.get("PAR-01")
-        if main_path and main_path.get("statut") == "non_applicable":
-            warnings.append("PAR-01 non applicable : justifier dans le rapport")
-        elif not main_path or main_path.get("statut") != "reussi":
-            blocking.append("B4 : parcours principal (PAR-01) non réussi")
+        if main_path and main_path.get("status") == "not_applicable":
+            warnings.append("PAR-01 not applicable: justify it in the report")
+        elif not main_path or main_path.get("status") != "passed":
+            blocking.append("B4: main flow (PAR-01) not passed")
 
-    if report.get("changement_visuel", True) and not limited:
-        pairs = [p for p in report.get("avant_apres", []) if p.get("apres") and exists(run, p["apres"])]
-        for pair in report.get("avant_apres", []):
-            for key in ("avant", "apres", "diff"):
+    if report.get("visual_change", True) and not limited:
+        pairs = [p for p in report.get("before_after", []) if p.get("after") and exists(run, p["after"])]
+        for pair in report.get("before_after", []):
+            for key in ("before", "after", "diff"):
                 if pair.get(key) and not exists(run, pair[key]):
-                    errors.append(f"avant_apres : fichier introuvable {pair[key]}")
+                    errors.append(f"before_after: file not found {pair[key]}")
         if not pairs:
-            blocking.append("B5 : changement visuel sans capture après (avant/après) existante")
-        elif report.get("corrections") and not any("after-fix" in p["apres"] for p in pairs):
-            blocking.append("B5 : corrections appliquées sans recapture dans un dossier after-fix-*")
+            blocking.append("B5: visual change without an existing after (before/after) capture")
+        elif report.get("fixes") and not any("after-fix" in p["after"] for p in pairs):
+            blocking.append("B5: fixes applied without re-capture in an after-fix-* folder")
 
     log = read_json(run / "research" / "log.json", []) or []
     refs = read_json(run / "research" / "references.json", []) or []
@@ -178,198 +182,198 @@ def verify(run):
             seen.add(normalize(url))
     valid_refs = []
     for ref in refs:
-        if ref.get("statut_consultation") in ("consultee", "revalidee"):
+        if ref.get("access_status") in ("accessed", "revalidated"):
             if normalize(ref.get("url", "")) not in seen:
-                errors.append(f"{ref.get('id', '?')} : URL absente du journal de recherche (référence non tracée ou fabriquée) {ref.get('url')}")
+                errors.append(f"{ref.get('id', '?')}: URL missing from the research log (reference not traced or fabricated) {ref.get('url')}")
             else:
                 valid_refs.append(ref)
-    research = report.get("recherche") or {}
-    research_status = research.get("statut")
-    if research_status not in ("realisee", "partielle", "non_realisee"):
-        errors.append(f"recherche.statut invalide {research_status!r}")
-    if research_status in ("realisee", "partielle") and not valid_refs:
-        errors.append("recherche déclarée réalisée sans aucune référence consultée et tracée")
-    if research_status == "non_realisee" and not research.get("cause"):
-        errors.append("recherche non réalisée sans cause")
-    if research_status != "realisee":
-        downgrades.append(f"recherche Web : {research_status}")
-    max_refs = levels["max_references"].get(report.get("niveau", "N1"), 5)
+    research = report.get("research") or {}
+    research_status = research.get("status")
+    if research_status not in ("done", "partial", "not_done"):
+        errors.append(f"research.status invalid {research_status!r}")
+    if research_status in ("done", "partial") and not valid_refs:
+        errors.append("research declared done without any accessed and traced reference")
+    if research_status == "not_done" and not research.get("cause"):
+        errors.append("research not done without a cause")
+    if research_status != "done":
+        downgrades.append(f"Web research: {research_status}")
+    max_refs = levels["max_references"].get(report.get("level", "N1"), 5)
     if len(valid_refs) > max_refs:
-        warnings.append(f"{len(valid_refs)} références pour un plafond indicatif de {max_refs} : justifier ou retirer les liens décoratifs")
-    compared = {c.get("ref") for c in report.get("comparaisons", [])}
+        warnings.append(f"{len(valid_refs)} references for an indicative cap of {max_refs}: justify them or remove decorative links")
+    compared = {c.get("ref") for c in report.get("comparisons", [])}
     for ref in valid_refs:
         if ref.get("id") not in compared:
-            warnings.append(f"{ref.get('id')} retenue sans ligne de comparaison")
+            warnings.append(f"{ref.get('id')} kept without a comparison row")
 
     human_checks = []
     for cid, control in controls.items():
-        if control.get("statut") != "non_verifie":
+        if control.get("status") != "not_verified":
             continue
-        if control.get("raison_type") in ("humain", "appareil_reel"):
-            human_checks.append(f"{cid} ({control.get('raison_type')}) : {control.get('raison')}")
+        if control.get("reason_type") in ("human", "real_device"):
+            human_checks.append(f"{cid} ({control.get('reason_type')}): {control.get('reason')}")
         else:
-            downgrades.append(f"{cid} non vérifié ({control.get('raison_type')})")
-    if report.get("couverture_reduite"):
-        downgrades.append("couverture réduite : " + str(report.get("justification_reduction") or "justification manquante"))
-        if not report.get("justification_reduction"):
-            errors.append("couverture_reduite sans justification_reduction")
+            downgrades.append(f"{cid} not verified ({control.get('reason_type')})")
+    if report.get("reduced_coverage"):
+        downgrades.append("reduced coverage: " + str(report.get("reduction_justification") or "justification missing"))
+        if not report.get("reduction_justification"):
+            errors.append("reduced_coverage without reduction_justification")
     if not exists(run, report.get("coverage") or "coverage.json"):
-        warnings.append("coverage.json absent : lister les combinaisons exécutées et exclues")
+        warnings.append("coverage.json missing: list the executed and excluded combinations")
 
     if blocking:
-        decision = "NON_VALIDEE"
+        decision = "NOT_VALIDATED"
     elif limited:
-        decision = "VALIDATION_LIMITEE"
+        decision = "LIMITED_VALIDATION"
     elif exceptions_used:
-        decision = "VALIDEE_AVEC_EXCEPTIONS"
+        decision = "VALIDATED_WITH_EXCEPTIONS"
     elif downgrades:
-        decision = "VALIDEE_PERIMETRE_TESTE"
+        decision = "VALIDATED_TESTED_SCOPE"
     else:
-        decision = "VALIDEE_PROTOCOLE_COMPLET"
+        decision = "VALIDATED_FULL_PROTOCOL"
 
     written = report.get("decision")
     if written is None:
-        warnings.append("decision absente du rapport (utiliser --apply)")
+        warnings.append("decision missing from the report (use --apply)")
     elif written not in DECISIONS:
-        errors.append(f"decision invalide {written!r}")
+        errors.append(f"decision invalid {written!r}")
     elif written != decision:
-        errors.append(f"decision écrite {written} différente de la décision calculée {decision}")
+        errors.append(f"decision written {written} differs from the computed decision {decision}")
 
     return {
         "status": "ok" if not errors else "inconsistent",
         "run": str(run),
-        "decision_calculee": decision,
-        "decision_ecrite": written,
-        "bloquants": blocking,
-        "baisses": downgrades,
+        "computed_decision": decision,
+        "written_decision": written,
+        "blocking": blocking,
+        "downgrades": downgrades,
         "exceptions": exceptions_used,
-        "verifications_humaines": human_checks,
+        "human_checks": human_checks,
         "errors": errors,
         "warnings": warnings,
-        "defauts": defects,
-        "references_valides": valid_refs,
+        "findings": findings,
+        "valid_references": valid_refs,
     }
 
 
-def bullet(items, empty="Aucun."):
+def bullet(items, empty="None."):
     return "\n".join(f"- {i}" for i in items) if items else empty
 
 
 def render(run, report, result):
     run = Path(run)
-    defects = result["defauts"]
-    counts = {s: sum(1 for d in defects if d.get("severite") == s) for s in ["critique", "majeure", "moderee", "mineure"]}
-    open_counts = {s: sum(1 for d in defects if d.get("severite") == s and d.get("statut") in OPEN_STATUSES) for s in counts}
-    controls = report.get("controles", [])
-    by_status = {s: [c["id"] for c in controls if c.get("statut") == s] for s in ["reussi", "echoue", "non_verifie", "non_applicable"]}
+    findings = result["findings"]
+    counts = {s: sum(1 for f in findings if f.get("severity") == s) for s in ["critical", "major", "moderate", "minor"]}
+    open_counts = {s: sum(1 for f in findings if f.get("severity") == s and f.get("status") in OPEN_STATUSES) for s in counts}
+    controls = report.get("controls", [])
+    by_status = {s: [c["id"] for c in controls if c.get("status") == s] for s in ["passed", "failed", "not_verified", "not_applicable"]}
     lines = [
-        f"# Audit UI : {report.get('titre', '')} ({report.get('run_id', run.name)})",
+        f"# UI audit: {report.get('title', '')} ({report.get('run_id', run.name)})",
         "",
-        f"## Décision : {DECISION_LABELS[result['decision_calculee']]}",
+        f"## Decision: {DECISION_LABELS[result['computed_decision']]}",
         "",
-        f"Défauts : {counts['critique']} critiques, {counts['majeure']} majeurs, {counts['moderee']} modérés, {counts['mineure']} mineurs. "
-        f"Encore ouverts : {open_counts['critique']} / {open_counts['majeure']} / {open_counts['moderee']} / {open_counts['mineure']}.",
+        f"Findings: {counts['critical']} critical, {counts['major']} major, {counts['moderate']} moderate, {counts['minor']} minor. "
+        f"Still open: {open_counts['critical']} / {open_counts['major']} / {open_counts['moderate']} / {open_counts['minor']}.",
         "",
-        "Conditions bloquantes :",
-        bullet(result["bloquants"]),
+        "Blocking conditions:",
+        bullet(result["blocking"]),
         "",
-        "Ce qui limite la validation :",
-        bullet(result["baisses"]),
+        "What limits the validation:",
+        bullet(result["downgrades"]),
         "",
-        "> Une absence de défaut détecté n'est pas une absence de défaut. Cette décision ne vaut que pour le périmètre, les configurations et les contrôles listés ci-dessous.",
+        "> No detected finding does not mean no finding. This decision only holds for the scope, configurations and controls listed below.",
         "",
-        "## Périmètre",
+        "## Scope",
         "",
-        f"- Demande : {report.get('demande') or 'non renseignée'}",
-        f"- Objectif : {report.get('objectif') or 'non renseigné'}",
-        f"- Zones : {', '.join(report.get('perimetre', {}).get('zones', [])) or 'non renseignées'}",
-        f"- Rayon d'impact : {', '.join(report.get('perimetre', {}).get('rayon_impact', [])) or 'non renseigné'}",
-        f"- Niveau : {report.get('niveau')} (calculé : {report.get('niveau_calcule')})" + (f", couverture réduite : {report.get('justification_reduction')}" if report.get("couverture_reduite") else ""),
-        f"- Mode : {report.get('mode')} ; baseline : {report.get('baseline')} ; déclenchement : {report.get('declenchement')}",
+        f"- Request: {report.get('request') or 'not provided'}",
+        f"- Goal: {report.get('goal') or 'not provided'}",
+        f"- Zones: {', '.join(report.get('scope', {}).get('zones', [])) or 'not provided'}",
+        f"- Impact radius: {', '.join(report.get('scope', {}).get('impact_radius', [])) or 'not provided'}",
+        f"- Level: {report.get('level')} (computed: {report.get('computed_level')})" + (f", reduced coverage: {report.get('reduction_justification')}" if report.get("reduced_coverage") else ""),
+        f"- Mode: {report.get('mode')}; baseline: {report.get('baseline')}; trigger: {report.get('trigger')}",
         "",
-        "Critères d'acceptation :",
-        bullet(report.get("criteres_acceptation", [])),
+        "Acceptance criteria:",
+        bullet(report.get("acceptance_criteria", [])),
         "",
-        "## Hypothèses",
+        "## Assumptions",
         "",
     ]
-    hypotheses = report.get("hypotheses", [])
-    if hypotheses:
-        lines += ["| Hypothèse | Source | Impact si fausse |", "|---|---|---|"]
-        lines += [f"| {h.get('hypothese', '')} | {h.get('source', '')} | {h.get('impact_si_fausse', '')} |" for h in hypotheses]
+    assumptions = report.get("assumptions", [])
+    if assumptions:
+        lines += ["| Assumption | Source | Impact if wrong |", "|---|---|---|"]
+        lines += [f"| {a.get('assumption', '')} | {a.get('source', '')} | {a.get('impact_if_wrong', '')} |" for a in assumptions]
     else:
-        lines.append("Aucune.")
-    env = report.get("environnement", {})
-    lines += ["", "## Environnement", "", f"- Outils : {', '.join(env.get('outils', [])) or 'non renseignés'}", f"- Fidélité : {env.get('fidelite', 'non renseignée')}", ""]
-    research = report.get("recherche", {})
-    lines += ["## Références consultées", "", f"Statut de la recherche : {research.get('statut')}" + (f" ({research.get('cause')})" if research.get("cause") else ""), ""]
-    refs = result["references_valides"]
+        lines.append("None.")
+    env = report.get("environment", {})
+    lines += ["", "## Environment", "", f"- Tools: {', '.join(env.get('tools', [])) or 'not provided'}", f"- Fidelity: {env.get('fidelity', 'not provided')}", ""]
+    research = report.get("research", {})
+    lines += ["## References consulted", "", f"Research status: {research.get('status')}" + (f" ({research.get('cause')})" if research.get("cause") else ""), ""]
+    refs = result["valid_references"]
     if refs:
-        lines += ["| Réf. | Titre | Organisme | Consultée le | Publiée ou mise à jour | Question | Limites |", "|---|---|---|---|---|---|---|"]
-        lines += [f"| {r['id']} | [{r['titre']}]({r['url']}) | {r.get('auteur_organisme', '')} | {r.get('date_consultation', '')} | {r.get('date_publication_ou_maj') or 'non indiquée'} | {r.get('question_etudiee', '')} | {r.get('limites_transposition', '')} |" for r in refs]
-    comparisons = report.get("comparaisons", [])
+        lines += ["| Ref. | Title | Organization | Accessed on | Published or updated | Question | Limits |", "|---|---|---|---|---|---|---|"]
+        lines += [f"| {r['id']} | [{r['title']}]({r['url']}) | {r.get('author_organization', '')} | {r.get('accessed_at', '')} | {r.get('published_or_updated') or 'not stated'} | {r.get('question', '')} | {r.get('transfer_limits', '')} |" for r in refs]
+    comparisons = report.get("comparisons", [])
     if comparisons:
-        lines += ["", "| Réf. | Observation | Principe | Écart | Adaptation | Bénéfice | Nature |", "|---|---|---|---|---|---|---|"]
-        lines += [f"| {c.get('ref')} | {c.get('observation', '')} | {c.get('principe', '')} | {c.get('ecart', '')} | {c.get('adaptation', '')} | {c.get('benefice', '')} | {c.get('nature', '')} |" for c in comparisons]
-    lines += ["", "## Couverture", "", "| Statut | Contrôles |", "|---|---|"]
+        lines += ["", "| Ref. | Observation | Principle | Gap | Adaptation | Benefit | Nature |", "|---|---|---|---|---|---|---|"]
+        lines += [f"| {c.get('ref')} | {c.get('observation', '')} | {c.get('principle', '')} | {c.get('gap', '')} | {c.get('adaptation', '')} | {c.get('benefit', '')} | {c.get('nature', '')} |" for c in comparisons]
+    lines += ["", "## Coverage", "", "| Status | Controls |", "|---|---|"]
     lines += [f"| {s} | {', '.join(ids) or '-'} |" for s, ids in by_status.items()]
     coverage = read_json(run / (report.get("coverage") or "coverage.json"), {}) or {}
-    lines += ["", f"Combinaisons exécutées : {len(coverage.get('executees', []))} ; exclues : {len(coverage.get('exclues', []))}."]
-    for excluded in coverage.get("exclues", [])[:30]:
+    lines += ["", f"Combinations executed: {len(coverage.get('executed', []))}; excluded: {len(coverage.get('excluded', []))}."]
+    for excluded in coverage.get("excluded", [])[:30]:
         if isinstance(excluded, dict):
-            lines.append(f"- Exclu : {excluded.get('combinaison')} ; raison : {excluded.get('raison')} ; risque : {excluded.get('risque')}")
-    non_verified = [c for c in controls if c.get("statut") == "non_verifie"]
+            lines.append(f"- Excluded: {excluded.get('combination')}; reason: {excluded.get('reason')}; risk: {excluded.get('risk')}")
+    non_verified = [c for c in controls if c.get("status") == "not_verified"]
     if non_verified:
-        lines += ["", "Non vérifiés :"]
-        lines += [f"- {c['id']} ({c.get('raison_type')}) : {c.get('raison')}" for c in non_verified]
-    lines += ["", "## Défauts", ""]
-    order = {"critique": 0, "majeure": 1, "moderee": 2, "mineure": 3}
-    for d in sorted(defects, key=lambda x: (order.get(x.get("severite"), 9), x.get("id", ""))):
+        lines += ["", "Not verified:"]
+        lines += [f"- {c['id']} ({c.get('reason_type')}): {c.get('reason')}" for c in non_verified]
+    lines += ["", "## Findings", ""]
+    order = {"critical": 0, "major": 1, "moderate": 2, "minor": 3}
+    for f in sorted(findings, key=lambda x: (order.get(x.get("severity"), 9), x.get("id", ""))):
         lines += [
-            f"### {d.get('id')} : {d.get('titre')}",
+            f"### {f.get('id')}: {f.get('title')}",
             "",
-            f"- Contrôle : {d.get('controle')} ; écran ou composant : {d.get('ecran_composant', '')}",
-            f"- Sévérité : {d.get('severite')} ; priorité : {d.get('priorite')} ; confiance : {d.get('confiance')} ; effort : {d.get('effort', '')} ; nature : [{d.get('nature')}]",
-            f"- Statut : {d.get('statut')}" + (" (régression introduite par une correction)" if d.get("introduit_par_correction") else ""),
-            f"- Préconditions : {d.get('preconditions', '')} ; données : {d.get('donnees', '')} ; configuration : {d.get('config_id', '')}",
-            "- Étapes : " + " ; ".join(d.get("etapes", [])),
-            f"- Attendu : {d.get('attendu')}",
-            f"- Observé : {d.get('observe')}",
-            f"- Interprétation : {d.get('interpretation', '')}",
-            "- Preuves : " + ", ".join(d.get("preuves", [])),
+            f"- Control: {f.get('control')}; screen or component: {f.get('screen_component', '')}",
+            f"- Severity: {f.get('severity')}; priority: {f.get('priority')}; confidence: {f.get('confidence')}; effort: {f.get('effort', '')}; nature: [{f.get('nature')}]",
+            f"- Status: {f.get('status')}" + (" (regression introduced by a fix)" if f.get("introduced_by_fix") else ""),
+            f"- Preconditions: {f.get('preconditions', '')}; data: {f.get('data', '')}; configuration: {f.get('config_id', '')}",
+            "- Steps: " + "; ".join(f.get("steps", [])),
+            f"- Expected: {f.get('expected')}",
+            f"- Observed: {f.get('observed')}",
+            f"- Interpretation: {f.get('interpretation', '')}",
+            "- Evidence: " + ", ".join(f.get("evidence", [])),
         ]
-        if d.get("retest"):
-            lines.append(f"- Retest : {d['retest'].get('statut')} ({', '.join(d['retest'].get('preuves', []))})")
-        if d.get("exception"):
-            e = d["exception"]
-            lines.append(f"- Exception acceptée par {e.get('acceptee_par')} le {e.get('date')} : « {e.get('citation')} » ; échéance {e.get('echeance', 'non fixée')}")
-        if d.get("cause_blocage"):
-            lines.append(f"- Non résolu : {d.get('cause_blocage')} ; action requise : {d.get('action_requise')}")
+        if f.get("retest"):
+            lines.append(f"- Retest: {f['retest'].get('status')} ({', '.join(f['retest'].get('evidence', []))})")
+        if f.get("exception"):
+            e = f["exception"]
+            lines.append(f"- Exception accepted by {e.get('accepted_by')} on {e.get('date')}: \"{e.get('quote')}\"; due {e.get('due', 'not set')}")
+        if f.get("blocking_cause"):
+            lines.append(f"- Unresolved: {f.get('blocking_cause')}; required action: {f.get('required_action')}")
         lines.append("")
-    if not defects:
-        lines += ["Aucun défaut consigné.", ""]
-    variants = report.get("variantes", [])
+    if not findings:
+        lines += ["No finding recorded.", ""]
+    variants = report.get("variants", [])
     if variants:
-        lines += ["## Variantes", "", "```json", json.dumps(variants, ensure_ascii=False, indent=2), "```", ""]
-    corrections = report.get("corrections", [])
-    lines += ["## Corrections", ""]
-    if corrections:
-        lines += ["| Défauts | Cause | Solution | Type | Fichiers | Instances revérifiées |", "|---|---|---|---|---|---|"]
-        lines += [f"| {', '.join(c.get('defauts', []))} | {c.get('cause_probable', '')} | {c.get('solution', '')} | {c.get('type', '')} | {', '.join(c.get('fichiers', []))} | {c.get('instances_reverifiees', '')} |" for c in corrections]
+        lines += ["## Variants", "", "```json", json.dumps(variants, ensure_ascii=False, indent=2), "```", ""]
+    fixes = report.get("fixes", [])
+    lines += ["## Fixes", ""]
+    if fixes:
+        lines += ["| Findings | Cause | Solution | Type | Files | Instances rechecked |", "|---|---|---|---|---|---|"]
+        lines += [f"| {', '.join(c.get('findings', []))} | {c.get('probable_cause', '')} | {c.get('solution', '')} | {c.get('type', '')} | {', '.join(c.get('files', []))} | {c.get('instances_rechecked', '')} |" for c in fixes]
     else:
-        lines.append("Aucune.")
-    lines += ["", "## Avant / après", ""]
-    pairs = report.get("avant_apres", [])
+        lines.append("None.")
+    lines += ["", "## Before / after", ""]
+    pairs = report.get("before_after", [])
     if pairs:
-        lines += ["| Configuration | Avant | Après | Diff | Commentaire |", "|---|---|---|---|---|"]
-        lines += [f"| {p.get('config_id', '')} | {p.get('avant', '')} | {p.get('apres', '')} | {p.get('diff', '')} | {p.get('commentaire', '')} |" for p in pairs]
+        lines += ["| Configuration | Before | After | Diff | Comment |", "|---|---|---|---|---|"]
+        lines += [f"| {p.get('config_id', '')} | {p.get('before', '')} | {p.get('after', '')} | {p.get('diff', '')} | {p.get('comment', '')} |" for p in pairs]
     else:
-        lines.append("Aucune paire.")
-    lines += ["", "## Régressions", "", bullet([f"{r.get('controle')} : {r.get('resultat')}" for r in report.get("regressions", [])]), ""]
-    lines += ["## Limites et vérifications humaines", "", bullet(report.get("limites", []) + result["verifications_humaines"] + report.get("verifications_humaines", [])), ""]
+        lines.append("No pair.")
+    lines += ["", "## Regressions", "", bullet([f"{r.get('control')}: {r.get('result')}" for r in report.get("regressions", [])]), ""]
+    lines += ["## Limitations and human checks", "", bullet(report.get("limitations", []) + result["human_checks"] + report.get("human_checks", [])), ""]
     if result["warnings"]:
-        lines += ["## Avertissements du vérificateur", "", bullet(result["warnings"]), ""]
-    lines += [f"_Rapport généré le {now_iso()} par verify_report.py._", ""]
+        lines += ["## Verifier warnings", "", bullet(result["warnings"]), ""]
+    lines += [f"_Report generated on {now_iso()} by verify_report.py._", ""]
     (run / "report.md").write_text("\n".join(lines), encoding="utf-8")
     return str(run / "report.md")
 
@@ -377,8 +381,8 @@ def render(run, report, result):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("run")
-    parser.add_argument("--apply", action="store_true", help="Écrire la décision calculée si le reste est cohérent")
-    parser.add_argument("--render", action="store_true", help="Produire report.md")
+    parser.add_argument("--apply", action="store_true", help="Write the computed decision if everything else is consistent")
+    parser.add_argument("--render", action="store_true", help="Produce report.md")
     args = parser.parse_args()
 
     result = verify(args.run)
@@ -391,19 +395,19 @@ def main():
         other_errors = [e for e in result["errors"] if not e.startswith("decision")]
         if not other_errors:
             report = read_json(run / "report.json")
-            report["decision"] = result["decision_calculee"]
-            report["verifie_le"] = now_iso()
+            report["decision"] = result["computed_decision"]
+            report["verified_at"] = now_iso()
             write_json(run / "report.json", report)
             result = verify(args.run)
             result["applied"] = True
         else:
             result["applied"] = False
-            result["apply_refused"] = "incohérences à corriger avant d'écrire la décision"
+            result["apply_refused"] = "inconsistencies to fix before writing the decision"
             if decision_errors:
                 result["errors"] = other_errors + decision_errors
     if args.render:
         result["report_md"] = render(run, read_json(run / "report.json"), result)
-    output = {k: v for k, v in result.items() if k not in ("defauts", "references_valides")}
+    output = {k: v for k, v in result.items() if k not in ("findings", "valid_references")}
     print(json.dumps(output, ensure_ascii=False, indent=2))
     sys.exit(0 if result["status"] == "ok" else 1)
 

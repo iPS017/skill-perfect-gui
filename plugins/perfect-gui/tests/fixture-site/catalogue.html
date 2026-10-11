@@ -1,59 +1,59 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
-<title>Catalogue, séjours (site de test d'exploration)</title>
+<title>Catalogue, stays (exploration test site)</title>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<a class="skip-link" href="#main">Aller au contenu</a>
+<a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
-  <nav class="site-nav" aria-label="Navigation principale">
+  <nav class="site-nav" aria-label="Main navigation">
     <ul>
-      <li><a href="index.html" data-i18n="nav.home">Accueil</a></li>
+      <li><a href="index.html" data-i18n="nav.home">Home</a></li>
       <li><a href="catalogue.html" aria-current="page" data-i18n="nav.catalog">Catalogue</a></li>
     </ul>
   </nav>
   <div class="toolbar">
     <div class="more">
-      <button class="btn btn-quiet" type="button" id="more-button" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" data-i18n="nav.more">Plus</button>
+      <button class="btn btn-quiet" type="button" id="more-button" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" data-i18n="nav.more">More</button>
       <ul class="more-menu" id="more-menu" hidden>
-        <li><a href="catalogue.html?tri=prix" data-i18n="more.help">Aide</a></li>
-        <li><a href="catalogue.html?tri=nom" data-i18n="more.about">À propos</a></li>
+        <li><a href="catalogue.html?sort=price" data-i18n="more.help">Help</a></li>
+        <li><a href="catalogue.html?sort=name" data-i18n="more.about">About us</a></li>
       </ul>
     </div>
-    <button class="btn btn-quiet" type="button" id="theme-toggle" aria-pressed="false" data-i18n="theme.toggle">Mode sombre</button>
-    <label for="language" data-i18n="lang.label">Langue</label>
-    <select id="language" name="langue">
-      <option value="fr">Français</option>
+    <button class="btn btn-quiet" type="button" id="theme-toggle" aria-pressed="false" data-i18n="theme.toggle">Dark mode</button>
+    <label for="language" data-i18n="lang.label">Language</label>
+    <select id="language" name="language">
       <option value="en">English</option>
+      <option value="fr">Français</option>
     </select>
   </div>
 </header>
 <main id="main">
   <h1 data-i18n="catalog.title">Catalogue</h1>
-  <p><a href="catalogue.html?tri=prix" data-i18n="catalog.sort.price">Trier par prix</a> · <a href="catalogue.html?tri=nom" data-i18n="catalog.sort.name">Trier par nom</a></p>
-  <div class="tabs" role="tablist" aria-label="Informations">
-    <button class="btn btn-quiet" type="button" role="tab" id="tab-details" aria-selected="true" aria-controls="panel-details" data-i18n="tab.details">Détails</button>
-    <button class="btn btn-quiet" type="button" role="tab" id="tab-reviews" aria-selected="false" aria-controls="panel-reviews" data-i18n="tab.reviews">Avis</button>
+  <p><a href="catalogue.html?sort=price" data-i18n="catalog.sort.price">Sort by price</a> · <a href="catalogue.html?sort=name" data-i18n="catalog.sort.name">Sort by name</a></p>
+  <div class="tabs" role="tablist" aria-label="Information">
+    <button class="btn btn-quiet" type="button" role="tab" id="tab-details" aria-selected="true" aria-controls="panel-details" data-i18n="tab.details">Details</button>
+    <button class="btn btn-quiet" type="button" role="tab" id="tab-reviews" aria-selected="false" aria-controls="panel-reviews" data-i18n="tab.reviews">Reviews</button>
   </div>
-  <section class="tab-panel" id="panel-details" role="tabpanel" aria-labelledby="tab-details"><p data-i18n="tab.details.text">Tous les séjours incluent le linge de maison.</p></section>
-  <section class="tab-panel" id="panel-reviews" role="tabpanel" aria-labelledby="tab-reviews" hidden><p data-i18n="tab.reviews.text">Les voyageurs notent nos séjours 4,6 sur 5.</p></section>
-  <h2 data-i18n="home.offers">Nos offres</h2>
+  <section class="tab-panel" id="panel-details" role="tabpanel" aria-labelledby="tab-details"><p data-i18n="tab.details.text">All stays include bed linen.</p></section>
+  <section class="tab-panel" id="panel-reviews" role="tabpanel" aria-labelledby="tab-reviews" hidden><p data-i18n="tab.reviews.text">Guests rate our stays 4.6 out of 5.</p></section>
+  <h2 data-i18n="home.offers">Our offers</h2>
   <ul class="cards">
-    <li class="card"><h3 data-i18n="offer.chalet">Chalet en montagne</h3><p data-i18n="offer.chalet.text">Trois nuits, petit-déjeuner compris.</p><button class="btn" type="button" data-select-offer id="select-chalet" aria-pressed="false" data-i18n="catalog.add">Ajouter à la sélection</button></li>
-    <li class="card"><h3 data-i18n="offer.sea">Maison au bord de mer</h3><p data-i18n="offer.sea.text">Une semaine, accès direct à la plage.</p><button class="btn" type="button" data-select-offer id="select-sea" aria-pressed="false" data-i18n="catalog.add">Ajouter à la sélection</button></li>
-    <li class="card"><h3 data-i18n="offer.city">Appartement en ville</h3><p data-i18n="offer.city.text">Deux nuits, proche des musées.</p><button class="btn" type="button" data-select-offer id="select-city" aria-pressed="false" data-i18n="catalog.add">Ajouter à la sélection</button></li>
+    <li class="card"><h3 data-i18n="offer.chalet">Mountain chalet</h3><p data-i18n="offer.chalet.text">Three nights, breakfast included.</p><button class="btn" type="button" data-select-offer id="select-chalet" aria-pressed="false" data-i18n="catalog.add">Add to selection</button></li>
+    <li class="card"><h3 data-i18n="offer.sea">Seaside house</h3><p data-i18n="offer.sea.text">One week, direct beach access.</p><button class="btn" type="button" data-select-offer id="select-sea" aria-pressed="false" data-i18n="catalog.add">Add to selection</button></li>
+    <li class="card"><h3 data-i18n="offer.city">City flat</h3><p data-i18n="offer.city.text">Two nights near the museums.</p><button class="btn" type="button" data-select-offer id="select-city" aria-pressed="false" data-i18n="catalog.add">Add to selection</button></li>
   </ul>
   <p class="status" id="selection-status" role="status"></p>
   <p class="toolbar">
-    <button class="btn" type="button" id="compare-button" data-i18n="catalog.compare" onclick="document.getElementById('selection-status').textContent = 'Comparaison prête.'">Comparer</button>
-    <button class="btn" type="button" id="share-button" data-i18n="catalog.share" onclick="document.getElementById('selection-status').textContent = 'Lien copié.'">Partager</button>
+    <button class="btn" type="button" id="compare-button" data-i18n="catalog.compare" onclick="document.getElementById('selection-status').textContent = 'Comparison ready.'">Compare</button>
+    <button class="btn" type="button" id="share-button" data-i18n="catalog.share" onclick="document.getElementById('selection-status').textContent = 'Link copied.'">Share</button>
   </p>
 </main>
-<footer><p data-i18n="footer.text">Site de démonstration, aucune donnée réelle.</p></footer>
+<footer><p data-i18n="footer.text">Demo site, no real data.</p></footer>
 <script src="app.js"></script>
 <script>if (window.UIAG_DEFECTS === true) document.getElementById('compare-button').style.borderRadius = '0';</script>
 </body>

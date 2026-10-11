@@ -1,14 +1,14 @@
 ---
-description: Lance l'audit UI/UX ui-audit-gate sur les modifications d'interface en cours
-argument-hint: "[N1|N2|N3] [url] [périmètre ou consigne]"
+description: Run the ui-audit-gate UI/UX audit on the current interface changes
+argument-hint: "[N1|N2|N3] [url] [scope or instructions]"
 ---
 
-Exécute le skill `ui-audit-gate` sur les modifications d'interface en cours, en suivant ses 9 étapes jusqu'à la décision produite par `verify_report.py --apply --render`.
+Run the `ui-audit-gate` skill on the current interface changes, following its 9 steps up to the decision produced by `verify_report.py --apply --render`.
 
-Paramètres fournis par l'utilisateur : $ARGUMENTS
+Parameters provided by the user: $ARGUMENTS
 
-- Un niveau (N1, N2 ou N3) impose un niveau minimal. Une baisse sous le niveau calculé doit être justifiée dans le rapport.
-- Une URL indique l'interface à ouvrir. Sinon, trouve la commande de lancement dans le projet avant de demander.
-- Le reste précise le périmètre.
+- A level (N1, N2 or N3) sets a minimum level. Any downgrade below the computed level must be justified in the report.
+- A URL indicates the interface to open. Otherwise, find the start command in the project before asking.
+- The rest narrows the scope.
 
-Ce déclenchement est explicite : utilise `--trigger C2` avec `init_run.py`.
+This trigger is explicit: use `--trigger C2` with `init_run.py`.

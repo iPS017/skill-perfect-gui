@@ -11,19 +11,19 @@ for arg in "$@"; do
   case "$arg" in
     --with-browsers) WITH_BROWSERS=1 ;;
     --no-axe) WITH_AXE=0 ;;
-    *) echo "Option inconnue : $arg (options : --with-browsers, --no-axe)" >&2; exit 2 ;;
+    *) echo "Unknown option: $arg (options: --with-browsers, --no-axe)" >&2; exit 2 ;;
   esac
 done
 
 PYTHON="$(command -v python3 || command -v python || true)"
 if [ -z "$PYTHON" ]; then
-  echo "Python 3 introuvable. Installer Python 3.9 ou plus récent." >&2
+  echo "Python 3 not found. Install Python 3.9 or newer." >&2
   exit 3
 fi
 
 mkdir -p "$CACHE_DIR"
 if [ ! -x "$VENV_DIR/bin/python" ] && [ ! -x "$VENV_DIR/Scripts/python.exe" ]; then
-  echo "Création du venv : $VENV_DIR"
+  echo "Creating the venv: $VENV_DIR"
   "$PYTHON" -m venv "$VENV_DIR"
 fi
 VENV_PY="$VENV_DIR/bin/python"
@@ -41,7 +41,7 @@ if [ "$(uname)" = "Darwin" ] && [ -d "/Applications/Google Chrome.app" ]; then h
 if [ "$WITH_BROWSERS" = 1 ]; then
   "$VENV_PY" -m playwright install chromium firefox webkit
 elif [ "$has_system_browser" = 0 ]; then
-  echo "Aucun Chrome ou Edge système détecté : installation de Chromium pour Playwright."
+  echo "No system Chrome or Edge detected: installing Chromium for Playwright."
   "$VENV_PY" -m playwright install chromium
 fi
 
@@ -53,5 +53,5 @@ if [ "$WITH_AXE" = 1 ] && [ ! -f "$CACHE_DIR/axe-$AXE_VERSION.min.js" ]; then
   done
 fi
 
-echo "Prêt. Venv : $VENV_DIR"
+echo "Ready. Venv: $VENV_DIR"
 "$VENV_PY" -c "import playwright, PIL; print('playwright', getattr(playwright, '__version__', '?'), '| pillow', PIL.__version__)"

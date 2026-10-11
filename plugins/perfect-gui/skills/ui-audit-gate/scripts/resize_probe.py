@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Comportements au changement d'espace disponible.
+"""Behaviour when the available space changes.
 
---mode state    : remplit les champs, redimensionne (rotation, pliage, fenêtre partagée) et vérifie
-                  que valeurs, focus, dialogues ouverts et page sont conservés.
---mode keyboard : émule un clavier virtuel en réduisant la hauteur du viewport (modèle resizes-content)
-                  et vérifie que le champ focalisé et l'action principale restent atteignables.
+--mode state    : fills the fields, resizes (rotation, folding, split screen) and checks
+                  that values, focus, open dialogs and the page are preserved.
+--mode keyboard : emulates a virtual keyboard by reducing the viewport height (resizes-content model)
+                  and checks that the focused field and the primary action stay reachable.
 
-Exemples :
+Examples:
   python3 resize_probe.py --url URL --mode state --widths 1366,960,600,390,1366
   python3 resize_probe.py --url URL --mode keyboard --viewports mobile --field "#email" --action "#submit"
 """
@@ -69,7 +69,7 @@ KEYBOARD_CHECK_JS = """
   };
   const field = document.querySelector(fieldSel);
   const action = document.querySelector(actionSel);
-  if (!field || !action) return { error: `introuvable : ${!field ? fieldSel : actionSel}` };
+  if (!field || !action) return { error: `not found: ${!field ? fieldSel : actionSel}` };
   const fieldState = status(field);
   const scrollers = [];
   for (let a = action.parentElement; a && a !== document.documentElement; a = a.parentElement) {
@@ -114,20 +114,20 @@ def state_mode(page, args, cfg):
         page.wait_for_timeout(args.settle_ms)
         snapshot = page.evaluate(STATE_JS, fields)
         lost = [
-            {"selector": ref["selector"], "avant": ref.get("value"), "apres": now.get("value") if now["present"] else "élément absent"}
+            {"selector": ref["selector"], "before": ref.get("value"), "after": now.get("value") if now["present"] else "element missing"}
             for ref, now in zip(reference["values"], snapshot["values"])
             if ref["present"] and (not now["present"] or now["value"] != ref["value"])
         ]
         step = {"width": width, "height": height, "values_lost": lost, "page_reloaded": not snapshot["marker"], "focus": snapshot["active"], "dialogs": snapshot["dialogs"]}
         timeline.append(step)
         if lost:
-            issues.append({"controls": ["ROB-06", "FRM-04"], "kind": "valeurs-perdues", "width": width, "items": lost})
+            issues.append({"controls": ["ROB-06", "FRM-04"], "kind": "values-lost", "width": width, "items": lost})
         if not snapshot["marker"]:
-            issues.append({"controls": ["ROB-06"], "kind": "page-rechargee", "width": width})
+            issues.append({"controls": ["ROB-06"], "kind": "page-reloaded", "width": width})
         if reference["active"] and snapshot["active"] != reference["active"]:
-            issues.append({"controls": ["ROB-06"], "kind": "focus-perdu", "width": width, "avant": reference["active"], "apres": snapshot["active"]})
+            issues.append({"controls": ["ROB-06"], "kind": "focus-lost", "width": width, "before": reference["active"], "after": snapshot["active"]})
         if snapshot["dialogs"] < reference["dialogs"]:
-            issues.append({"controls": ["ROB-06"], "kind": "dialogue-ferme", "width": width})
+            issues.append({"controls": ["ROB-06"], "kind": "dialog-closed", "width": width})
         if not snapshot["marker"]:
             break
     return {"fields": len(fields), "reference": reference, "timeline": timeline, "issues": issues}
@@ -139,14 +139,14 @@ def keyboard_mode(page, args, cfg):
         fields = page.evaluate(FIELDS_JS, args.scope)
         texts = [f for f in fields if f["kind"] == "text"]
         if not texts:
-            return {"error": "aucun champ texte trouvé, préciser --field"}
+            return {"error": "no text field found, specify --field"}
         field = texts[-1]["selector"]
     action = args.action or page.evaluate(
         "(s) => { const f = document.querySelector(s); const form = f && f.form; const b = form && form.querySelector('[type=submit], button:not([type])'); return b ? (b.id ? '#' + b.id : null) : null; }",
         field,
     )
     if not action:
-        return {"error": "action principale introuvable, préciser --action"}
+        return {"error": "primary action not found, specify --action"}
     full_height = cfg["height"]
     reduced = max(120, round(full_height * args.ratio))
     page.focus(field)
@@ -159,14 +159,14 @@ def keyboard_mode(page, args, cfg):
         return check
     issues = []
     if not (check["field"]["inside"] and check["field"]["free"]):
-        issues.append({"controls": ["ENV-02"], "kind": "champ-focalise-masque", "detail": check["field"]})
+        issues.append({"controls": ["ENV-02"], "kind": "focused-field-hidden", "detail": check["field"]})
     if check["action"]["programmatic_only_scroll"]:
-        issues.append({"controls": ["ENV-02"], "kind": "action-atteignable-seulement-par-script", "conteneurs": check["action"]["programmatic_only_scroll"]})
+        issues.append({"controls": ["ENV-02"], "kind": "action-reachable-only-by-script", "containers": check["action"]["programmatic_only_scroll"]})
     elif not (check["action"]["inside"] and check["action"]["free"]):
-        issues.append({"controls": ["ENV-02"], "kind": "action-masquee-ou-hors-ecran", "detail": check["action"]})
+        issues.append({"controls": ["ENV-02"], "kind": "action-hidden-or-off-screen", "detail": check["action"]})
     return {
         "field": field, "action": action, "full_height": full_height, "reduced_height": reduced, "check": check, "issues": issues,
-        "fidelite": "emulation (resizes-content) : clavier natif, mode resizes-visual et barres système non reproduits",
+        "fidelity": "emulation (resizes-content): native keyboard, resizes-visual mode and system bars not reproduced",
     }
 
 
@@ -174,12 +174,12 @@ def main():
     parser = base_parser(__doc__)
     add_browser_args(parser, default_viewports="laptop")
     parser.add_argument("--mode", required=True, choices=["state", "keyboard"])
-    parser.add_argument("--scope", help="Sélecteur limitant les champs remplis")
-    parser.add_argument("--widths", default="current,960,600,390,current", help="Largeurs successives en px CSS (current = largeur initiale)")
+    parser.add_argument("--scope", help="Selector limiting the filled fields")
+    parser.add_argument("--widths", default="current,960,600,390,current", help="Successive widths in CSS px (current = initial width)")
     parser.add_argument("--height", type=int, default=0)
-    parser.add_argument("--field", help="Champ à focaliser (mode keyboard)")
-    parser.add_argument("--action", help="Action principale à atteindre (mode keyboard)")
-    parser.add_argument("--ratio", type=float, default=0.55, help="Part de la hauteur restante avec le clavier ouvert")
+    parser.add_argument("--field", help="Field to focus (keyboard mode)")
+    parser.add_argument("--action", help="Primary action to reach (keyboard mode)")
+    parser.add_argument("--ratio", type=float, default=0.55, help="Share of the height left with the keyboard open")
     parser.add_argument("--settle-ms", type=int, default=350)
     args = parser.parse_args()
 

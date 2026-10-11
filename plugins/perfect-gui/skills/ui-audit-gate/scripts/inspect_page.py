@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Vérifications automatiques en page : débordements, superpositions, cibles, alignements,
-contraste, labels, noms accessibles, erreurs de formulaire, images, titres, langue, axe-core, console.
+"""Automatic in-page checks: overflows, overlaps, targets, alignment,
+contrast, labels, accessible names, form errors, images, headings, language, axe-core, console.
 
-Les résultats sont des candidats à confirmer sur la capture annotée, pas des verdicts.
+Results are candidates to confirm on the annotated screenshot, not verdicts.
 
-Exemple :
+Example:
   python3 inspect_page.py --url http://localhost:3000/ --viewports P0 --out .ui-audit/RUN-x/inspect --scan-scroll
 """
 from pathlib import Path
@@ -71,7 +71,7 @@ def scan_occlusion(page, js_source, opts):
                 continue
             entry = seen.setdefault(item["selector"], {"selector": item["selector"], "name": item["name"], "box": item["box"], "positions": 0, "masked": 0, "occluders": set()})
             entry["positions"] += 1
-            if item["state"] == "centre-masque":
+            if item["state"] == "center-covered":
                 entry["masked"] += 1
                 if item["occluder"]:
                     entry["occluders"].add(f"{item['occluder']} ({item['occluder_position']})")
@@ -81,15 +81,15 @@ def scan_occlusion(page, js_source, opts):
         if not entry["masked"]:
             continue
         entry["occluders"] = sorted(entry["occluders"])
-        entry["state"] = "masque-a-toutes-les-positions" if entry["masked"] == entry["positions"] else "masque-a-certaines-positions"
+        entry["state"] = "covered-at-every-position" if entry["masked"] == entry["positions"] else "covered-at-some-positions"
         items.append(entry)
-    items.sort(key=lambda e: (e["state"] != "masque-a-toutes-les-positions", e["selector"]))
+    items.sort(key=lambda e: (e["state"] != "covered-at-every-position", e["selector"]))
     return {
         "controls": ["STK-01", "STK-06"],
-        "result": "issues" if any(i["state"] == "masque-a-toutes-les-positions" for i in items) else "clean",
-        "mode": "balayage",
+        "result": "issues" if any(i["state"] == "covered-at-every-position" for i in items) else "clean",
+        "mode": "scan",
         "scroll_positions": positions,
-        "note": "masque-a-certaines-positions est souvent normal (en-tête sticky pendant le défilement) ; masque-a-toutes-les-positions signifie que l'action n'est jamais cliquable.",
+        "note": "covered-at-some-positions is often normal (sticky header while scrolling); covered-at-every-position means the action is never clickable.",
         "items": items,
     }
 
@@ -101,22 +101,22 @@ def collect_boxes(checks):
         if check.get("result") != "issues":
             continue
         for item in check.get("items", []):
-            if "box" in item and item.get("candidat", True):
-                boxes.append({**item["box"], "level": "critique" if name == "occlusion" else "majeure", "check": name, "selector": item.get("selector")})
+            if "box" in item and item.get("candidate", True):
+                boxes.append({**item["box"], "level": "critical" if name == "occlusion" else "major", "check": name, "selector": item.get("selector")})
     return boxes[:60]
 
 
 def main():
     parser = base_parser(__doc__)
     add_browser_args(parser)
-    parser.add_argument("--out", required=True, help="Dossier de sortie")
-    parser.add_argument("--scope", help="Sélecteur CSS limitant les vérifications")
-    parser.add_argument("--only", help="Vérifications à lancer, séparées par des virgules")
-    parser.add_argument("--pseudo", action="store_true", help="Pseudo-localiser le texte en page (+40 %%, accents)")
-    parser.add_argument("--text-spacing", action="store_true", help="Injecter les espacements de texte de WCAG 1.4.12")
-    parser.add_argument("--scan-scroll", action="store_true", help="Rechercher les superpositions à plusieurs positions de défilement")
+    parser.add_argument("--out", required=True, help="Output directory")
+    parser.add_argument("--scope", help="CSS selector limiting the checks")
+    parser.add_argument("--only", help="Comma-separated checks to run")
+    parser.add_argument("--pseudo", action="store_true", help="Pseudo-localize the page text (+40%%, accents)")
+    parser.add_argument("--text-spacing", action="store_true", help="Inject the WCAG 1.4.12 text spacing")
+    parser.add_argument("--scan-scroll", action="store_true", help="Look for overlaps at several scroll positions")
     parser.add_argument("--min-target", type=int, default=24)
-    parser.add_argument("--touch-target", type=int, default=44, help="Seuil tactile indicatif pour les pointeurs grossiers, 0 pour désactiver")
+    parser.add_argument("--touch-target", type=int, default=44, help="Indicative touch guideline for coarse pointers, 0 to disable")
     parser.add_argument("--align-tolerance", type=float, default=1.0)
     parser.add_argument("--no-axe", action="store_true")
     parser.add_argument("--no-screenshot", action="store_true")
@@ -125,7 +125,7 @@ def main():
     js_source = (SCRIPTS_DIR / "inspect.js").read_text(encoding="utf-8")
     out_root = Path(args.out)
     summary = {"tool": "inspect_page", "url": args.url, "created": now_iso(), "configs": []}
-    axe_source, axe_origin = (None, "désactivé (--no-axe)") if args.no_axe else load_axe()
+    axe_source, axe_origin = (None, "disabled (--no-axe)") if args.no_axe else load_axe()
 
     with browser_session(args) as (browser, browser_info):
         for viewport in resolve_viewports(args.viewports):
@@ -136,10 +136,10 @@ def main():
             context, page, logs, clock, steps = prepare_page(browser, cfg, args)
             variants = []
             if args.pseudo:
-                variants.append(f"pseudo-localisation ({page.evaluate(PSEUDO_JS, args.scope)} nœuds)")
+                variants.append(f"pseudo-localization ({page.evaluate(PSEUDO_JS, args.scope)} nodes)")
             if args.text_spacing:
                 page.add_style_tag(content=TEXT_SPACING_CSS)
-                variants.append("espacements de texte WCAG 1.4.12")
+                variants.append("WCAG 1.4.12 text spacing")
             if variants:
                 page.wait_for_timeout(100)
 
@@ -176,7 +176,7 @@ def main():
                 (out_dir / "aria-snapshot.txt").write_text(aria, encoding="utf-8")
                 aria_path = str(out_dir / "aria-snapshot.txt")
             except Exception as exc:
-                aria_path = f"indisponible ({type(exc).__name__})"
+                aria_path = f"unavailable ({type(exc).__name__})"
 
             screenshot = annotated = None
             if not args.no_screenshot:
@@ -190,7 +190,7 @@ def main():
             report = {
                 "config_id": cid,
                 "manifest": manifest(cfg, browser_info, args, clock, steps),
-                "variantes": variants,
+                "variants": variants,
                 "viewport": result["viewport"],
                 "document_height": result["document_height"],
                 "checks": checks,
@@ -208,7 +208,7 @@ def main():
             context.close()
 
     summary["issues"] = sorted({name for c in summary["configs"] for name, r in c["results"].items() if r["result"] == "issues"})
-    summary["rappel"] = "Candidats à confirmer visuellement. 'clean' = rien détecté par ce script, pas une preuve d'absence de défaut."
+    summary["reminder"] = "Candidates to confirm visually. 'clean' = nothing detected by this script, not proof that there is no defect."
     emit(summary)
 
 

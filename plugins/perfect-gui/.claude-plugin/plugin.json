@@ -1,7 +1,7 @@
 {
   "name": "perfect-gui",
-  "version": "1.1.0",
-  "description": "Barrière qualité UI/UX : audit du rendu réel (géométrie, superpositions, débordements, accessibilité, clavier, formulaires, responsive), recherche Web tracée, corrections et décision de validation prouvée avant de déclarer une interface terminée.",
+  "version": "1.2.0",
+  "description": "UI/UX quality gate: audit of the real rendering (geometry, overlaps, overflows, accessibility, keyboard, forms, responsive), traced Web research, fixes and an evidence-backed validation decision before an interface is declared done.",
   "author": {
     "name": "iPS017",
     "url": "https://github.com/iPS017"

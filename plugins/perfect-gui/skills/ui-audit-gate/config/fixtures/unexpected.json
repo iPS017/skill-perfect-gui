@@ -1,16 +1,16 @@
 {
   "null": null,
   "zero": 0,
-  "negatif": -1250.5,
-  "tres_grand": 98765432109876,
-  "decimal_long": 3.141592653589793,
-  "pourcentage_hors_borne": 134.7,
-  "date_invalide": "2026-02-30",
-  "html_echappe": "&lt;b&gt;texte&lt;/b&gt; &amp; \"guillemets\"",
-  "injection_affichee": "<img src=x onerror=alert(1)>",
-  "liste_vide": [],
-  "liste_enorme_taille": 10000,
-  "booleen_texte": "false",
-  "nan_texte": "NaN",
-  "undefined_texte": "undefined"
+  "negative": -1250.5,
+  "very_large": 98765432109876,
+  "long_decimal": 3.141592653589793,
+  "out_of_range_percentage": 134.7,
+  "invalid_date": "2026-02-30",
+  "escaped_html": "&lt;b&gt;texte&lt;/b&gt; &amp; \"guillemets\"",
+  "displayed_injection": "<img src=x onerror=alert(1)>",
+  "empty_list": [],
+  "huge_list_size": 10000,
+  "boolean_text": "false",
+  "nan_text": "NaN",
+  "undefined_text": "undefined"
 }

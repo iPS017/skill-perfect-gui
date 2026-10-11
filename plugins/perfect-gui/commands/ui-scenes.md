@@ -1,21 +1,21 @@
 ---
-description: Explore tout le site ou l'application Web, génère les scènes de tout ce qu'un utilisateur peut faire et les revoit toutes (à lancer avant chaque publication)
-argument-hint: "[url] [explorer|revoir|reference|accepter S-xxxx]"
+description: Explore the whole website or web app, generate scenes for everything a user can do and review them all (run before every release)
+argument-hint: "[url] [explore|review|baseline|accept S-xxxx]"
 ---
 
-Applique le mode exploration du skill `ui-audit-gate` (`reference/exploration.md`).
+Apply the exploration mode of the `ui-audit-gate` skill (`reference/exploration.md`).
 
-Paramètres fournis par l'utilisateur : $ARGUMENTS
+Parameters provided by the user: $ARGUMENTS
 
-1. Trouve comment lancer l'application (scripts du projet), lance-la si besoin, et détermine l'URL. Sinon, utilise celle des paramètres.
-2. Si `ui-scenes/scenes.json` n'existe pas, ou si l'utilisateur demande « explorer » :
-   - `explore_site.py`, puis `generate_scenarios.py` (avec `--export-playwright tests/ui-scenes.spec.ts` si le projet utilise déjà Playwright) ;
-   - puis `play_scenarios.py --mode baseline`, en montrant d'abord à l'utilisateur les captures de référence qui posent problème.
-3. Sinon, lance la revue complète : `play_scenarios.py --suite ui-scenes --url <URL>`.
-4. Présente le résultat :
-   - statut, nombre de scènes × viewports ;
-   - anomalies bloquantes regroupées par type, avec la scène, le viewport, la capture annotée et la clé ;
-   - changements visuels à revoir ;
-   - ce qui n'est pas couvert.
-5. Corrige les anomalies dans le périmètre autorisé, puis relance la revue. N'accepte un changement visuel (`--accept`) que s'il est voulu, et une anomalie (`--accept-anomaly`) que sur décision explicite de l'utilisateur.
-6. Ne déclare l'interface prête à publier que si la revue est au statut `ok`.
+1. Find out how to start the application (project scripts), start it if needed, and determine the URL. Otherwise, use the one from the parameters.
+2. If `ui-scenes/scenes.json` does not exist, or if the user asks to "explore":
+   - `explore_site.py`, then `generate_scenarios.py` (with `--export-playwright tests/ui-scenes.spec.ts` if the project already uses Playwright);
+   - then `play_scenarios.py --mode baseline`, first showing the user any baseline screenshots that look wrong.
+3. Otherwise, run the full review: `play_scenarios.py --suite ui-scenes --url <URL>`.
+4. Present the result:
+   - status, number of scenes x viewports;
+   - blocking anomalies grouped by type, with the scene, the viewport, the annotated screenshot and the key;
+   - visual changes to review;
+   - what is not covered.
+5. Fix the anomalies within the authorized scope, then rerun the review. Only accept a visual change (`--accept`) if it is intended, and an anomaly (`--accept-anomaly`) only on the user's explicit decision.
+6. Only declare the interface ready to publish if the review status is `ok`.

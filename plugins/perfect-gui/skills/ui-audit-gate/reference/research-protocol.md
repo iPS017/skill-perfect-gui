@@ -1,84 +1,84 @@
-# Protocole de recherche Web
+# Web research protocol
 
 ## Obligation
 
-Une recherche est tentée à chaque audit déclenché. En N1, une ou deux requêtes ciblées suffisent. Chaque requête et chaque page ouverte sont consignées avec `research_log.py`. Une référence ne compte que si son URL a été consultée (ou revalidée) dans ce run.
+A search is attempted on every triggered audit. At N1, one or two targeted queries are enough. Every query and every opened page is logged with `research_log.py`. A reference only counts if its URL was accessed (or revalidated) in this run.
 
-## Confidentialité
+## Confidentiality
 
-Les requêtes décrivent un motif d'interface, jamais le produit : « accessible inline form error pattern » et non « erreur formulaire checkout ACME interne ». Aucune capture, aucun nom de client, aucune URL interne, aucune donnée personnelle. `research_log.py query` refuse les requêtes qui contiennent des adresses e-mail, des hôtes locaux ou privés ou des chaînes qui ressemblent à des jetons, sauf `--force` après vérification.
+Queries describe an interface pattern, never the product: "accessible inline form error pattern", not "internal ACME checkout form error". No screenshot, no customer name, no internal URL, no personal data. `research_log.py query` rejects queries that contain email addresses, local or private hosts, or strings that look like tokens, unless `--force` is passed after checking.
 
-## Construction des requêtes
+## Building the queries
 
-Paramètres tirés du contexte : type de produit, tâche, plateforme, composant, design system existant, public **connu** (ne pas en inventer), secteur.
+Parameters taken from the context: product type, task, platform, component, existing design system, **known** audience (do not invent one), industry.
 
-Gabarits :
-- `<composant> accessibility pattern` (« date picker accessibility pattern »)
-- `<design system reconnu> <composant>` (Material, Apple HIG, Fluent, Carbon, GOV.UK Design System, DSFR pour un service public français, etc.)
-- `<norme> <critère> understanding` (« WCAG 2.2 target size minimum understanding »)
-- `<tâche> usability research` (sources de recherche UX reconnues)
-- Appareils : `<constructeur> <modèle> specifications`, puis la page officielle
-- Support d'une API Web : `<API> browser compatibility` (MDN, tables de compatibilité)
+Templates:
+- `<component> accessibility pattern` ("date picker accessibility pattern")
+- `<recognized design system> <component>` (Material, Apple HIG, Fluent, Carbon, GOV.UK Design System, DSFR for a French public service, etc.)
+- `<standard> <criterion> understanding` ("WCAG 2.2 target size minimum understanding")
+- `<task> usability research` (recognized UX research sources)
+- Devices: `<manufacturer> <model> specifications`, then the official page
+- Web API support: `<API> browser compatibility` (MDN, compatibility tables)
 
-## Hiérarchie des sources
+## Source hierarchy
 
-| Rang | Type | Usage |
+| Rank | Type | Use |
 |---|---|---|
-| 1 | Normes et documentation officielle (W3C/WAI, WHATWG, MDN, documentation Apple, Android, Microsoft, constructeurs) | Exigences, comportements, support |
-| 2 | Design systems reconnus | Patterns éprouvés, anatomie des composants |
-| 3 | Recherche UX publiée | Justification d'un comportement |
-| 4 | Produits comparables observés | Conventions du secteur |
-| 5 | Galeries visuelles | Inspiration seulement, jamais une preuve d'utilisabilité |
+| 1 | Standards and official documentation (W3C/WAI, WHATWG, MDN, Apple, Android, Microsoft and manufacturer documentation) | Requirements, behaviors, support |
+| 2 | Recognized design systems | Proven patterns, component anatomy |
+| 3 | Published UX research | Justification of a behavior |
+| 4 | Comparable products observed | Industry conventions |
+| 5 | Visual galleries | Inspiration only, never proof of usability |
 
-## Traçage
+## Logging
 
 ```bash
 R="$SKILL_DIR/scripts/research_log.py"
 python3 $R "$RUN" query --text "WCAG 2.2 focus not obscured understanding" --tool WebSearch --urls https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html
 python3 $R "$RUN" visit --url https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html --tool WebFetch
 python3 $R "$RUN" ref --json '{
-  "titre": "Understanding SC 2.4.11: Focus Not Obscured (Minimum)",
+  "title": "Understanding SC 2.4.11: Focus Not Obscured (Minimum)",
   "url": "https://www.w3.org/WAI/WCAG22/Understanding/focus-not-obscured-minimum.html",
-  "auteur_organisme": "W3C WAI",
-  "date_publication_ou_maj": null,
-  "statut_consultation": "consultee",
-  "rang_source": 1,
-  "question_etudiee": "Le pied de page fixe peut-il masquer le focus ?",
-  "constats_cles": ["..."],
-  "limites_transposition": "Critère AA ; vérifier que le projet vise AA.",
-  "utilisee_pour": ["DEF-003"]
+  "author_organization": "W3C WAI",
+  "published_or_updated": null,
+  "access_status": "accessed",
+  "source_rank": 1,
+  "question": "Can the fixed footer hide the focus?",
+  "key_points": ["..."],
+  "transfer_limits": "AA criterion; check that the project targets AA.",
+  "used_for": ["DEF-003"]
 }'
-python3 $R "$RUN" unavailable --cause "outil de recherche absent dans cet environnement"
+python3 $R "$RUN" unavailable --cause "no search tool in this environment"
 ```
 
-`ref` refuse une référence `consultee` ou `revalidee` dont l'URL n'apparaît dans aucune requête ni visite du run. La date de consultation est reprise de la visite.
+`ref` rejects an `accessed` or `revalidated` reference whose URL appears in no query or visit of the run. The access date is taken from the visit.
 
-## Comparaison obligatoire
+## Mandatory comparison
 
-Pour chaque référence retenue, une ligne dans `report.json > comparaisons` :
+For each reference kept, one row in `report.json > comparisons`.
 
-| Champ | Contenu |
+| Field | Content |
 |---|---|
 | `ref` | REF-xxx |
-| `observation` | Ce que montre notre interface (mesure, capture) |
-| `principe` | Ce que la référence établit, dans ses termes |
-| `ecart` | Différence constatée |
-| `adaptation` | Changement proposé, adapté à notre contexte |
-| `benefice` | Bénéfice attendu |
-| `nature` | `[EXIGENCE]`, `[HYPOTHÈSE]` ou `[PRÉFÉRENCE]` |
+| `observation` | What our interface shows (measurement, screenshot) |
+| `principle` | What the reference establishes, in its own terms |
+| `gap` | Difference observed |
+| `adaptation` | Proposed change, adapted to our context |
+| `benefit` | Expected benefit |
+| `nature` | `[REQUIREMENT]`, `[HYPOTHESIS]` or `[PREFERENCE]` |
 
-Règles : ne pas copier une interface, ses contenus ou son identité. Ne pas imposer une tendance au détriment de la lisibilité, de la cohérence ou des contraintes métier. Une recommandation normative se vérifie dans sa version applicable. Une ressemblance avec un système conforme ne prouve pas la conformité.
+Rules: do not copy an interface, its content or its identity. Do not impose a trend at the expense of readability, consistency or business constraints. A normative recommendation is checked in its applicable version. Resemblance to a compliant system does not prove compliance.
 
-## Pertinence et arrêt
+## Relevance and stopping
 
-- Retenir une référence si elle répond à une question précise de l'audit, si elle est de rang 1 à 3 (rang 4 pour une convention de secteur) et si elle est transposable à la plateforme.
-- S'arrêter quand chaque question ouverte a au moins une référence de rang 1 à 3, ou après deux tours sans information nouvelle.
-- Plafond indicatif : 5 références en N1 et N2, 8 en N3. Au-delà, justifier. Retirer les liens qui ne servent à aucun constat.
+- Keep a reference if it answers a specific audit question, if it is rank 1 to 3 (rank 4 for an industry convention) and if it transfers to the platform.
+- Stop when each open question has at least one rank 1 to 3 reference, or after two rounds without new information.
+- Indicative ceiling: 5 references at N1 and N2, 8 at N3. Beyond that, justify. Remove links that support no finding.
 
-## Réutilisation
+## Reuse
 
-`.ui-audit/research-cache.json` garde les références des runs précédents. Pour en réutiliser une : rouvrir l'URL (WebFetch), consigner la visite, puis `ref` avec `"statut_consultation": "revalidee"`. Une référence citée sans revalidation porte `memoire_non_revalidee` : elle ne compte pas comme recherche du run et ne fonde jamais seule un `[EXIGENCE]`.
+`.ui-audit/research-cache.json` keeps the references from previous runs. To reuse one, reopen the URL (WebFetch), log the visit, then call `ref` with `"access_status": "revalidated"`. A reference cited without revalidation carries `memory_not_revalidated`. It does not count as research for the run and never supports a `[REQUIREMENT]` on its own.
 
-## Web indisponible
+## Web unavailable
 
-`research_log.py unavailable --cause ...`, puis `report.json > recherche.statut = "non_realisee"` avec la cause. Poursuivre les contrôles locaux. Étiqueter les recommandations tirées des connaissances internes `[HYPOTHÈSE, non sourcée en ligne]`. La décision est plafonnée à `VALIDEE_PERIMETRE_TESTE`.
+Run `research_log.py unavailable --cause ...`, then set `report.json > research.status = "not_done"` with the cause. Continue the local controls. Label recommendations drawn from internal knowledge `[HYPOTHESIS, not sourced online]`. The decision is capped at `VALIDATED_TESTED_SCOPE`.

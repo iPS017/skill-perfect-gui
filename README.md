@@ -1,86 +1,89 @@
 # skill-perfect-gui
 
-Plugin Claude Code **perfect-gui**. Il contient le skill `ui-audit-gate`, une barrière qualité UI/UX qui intervient avant qu'une interface créée ou modifiée soit déclarée terminée.
+Claude Code plugin **perfect-gui**. It contains the `ui-audit-gate` skill, a UI/UX quality gate that runs before a newly created or modified interface is declared done.
 
-Le skill ouvre le rendu réel et capture l'avant et l'après. Il inspecte la géométrie, les superpositions, les débordements, l'accessibilité, le clavier, les formulaires et le responsive. Il fait une recherche Web tracée de références, corrige ou propose des correctifs, puis rend une décision de validation bornée et prouvée. Il ne promet pas une interface sans défaut : il dit ce qui a été vérifié, comment, et ce qui ne l'a pas été.
+The skill opens the real rendering and captures the before and after states. It inspects geometry, overlaps, overflows, accessibility, keyboard use, forms and responsive behaviour. It runs a traced Web search for references, fixes issues or proposes fixes, then issues a bounded, evidence-backed validation decision. It does not promise a flawless interface: it states what was checked, how, and what was not.
+
+The original specification, [CAHIER_DES_CHARGES.md](CAHIER_DES_CHARGES.md), is written in French.
 
 ## Installation
 
-Dans Claude Code (version 2.1.275 ou plus récente), en une étape :
+In Claude Code (version 2.1.275 or later), in one step:
 
 ```
 /plugin install perfect-gui --marketplace iPS017/skill-perfect-gui
 ```
 
-Ou en deux étapes :
+Or in two steps:
 
 ```
 /plugin marketplace add iPS017/skill-perfect-gui
 /plugin install perfect-gui@skill-perfect-gui
 ```
 
-Redémarrer Claude Code, puis installer les dépendances des scripts (venv dédié dans `~/.cache/ui-audit-gate`) :
+Restart Claude Code, then install the script dependencies (a dedicated venv in `~/.cache/ui-audit-gate`):
 
 ```bash
 bash ~/.claude/plugins/marketplaces/skill-perfect-gui/plugins/perfect-gui/skills/ui-audit-gate/scripts/setup.sh
 ```
 
-Le chemin exact dépend de l'installation. Le skill propose lui-même cette commande quand Playwright manque. Un Chrome ou un Edge système suffit. Sinon, `setup.sh` télécharge Chromium. `--with-browsers` ajoute Firefox et WebKit.
+The exact path depends on your installation. The skill suggests this command itself when Playwright is missing. A system Chrome or Edge is enough. Otherwise, `setup.sh` downloads Chromium. `--with-browsers` adds Firefox and WebKit.
 
-Prérequis : Python 3.9 ou plus récent et git. Node n'est pas nécessaire.
+Requirements: Python 3.9 or later and git. Node is not needed.
 
-## Utilisation
+## Usage
 
-- **Automatique** : le skill se déclenche quand Claude crée ou modifie une interface (page, composant, style, token, formulaire, navigation, traduction affichée, etc.).
-- **Explicite** : `/perfect-gui:ui-audit [N1|N2|N3] [url] [périmètre]`.
-- **Barrière mécanique** : un hook `Stop` bloque une fois la fin du tour si des fichiers d'interface ont changé dans le dépôt sans rapport d'audit cohérent et plus récent. Pour le désactiver : `UI_AUDIT_GATE=off` (ou `warn`), ou `.ui-audit/config.json` :
+- **Automatic**: the skill triggers when Claude creates or modifies an interface (page, component, style, token, form, navigation, displayed translation, and so on).
+- **Explicit**: `/perfect-gui:ui-audit [N1|N2|N3] [url] [scope]`.
+- **Mechanical gate**: a `Stop` hook blocks the end of the turn once if interface files changed in the repository without a newer, consistent audit report. To disable it: `UI_AUDIT_GATE=off` (or `warn`), or `.ui-audit/config.json`:
 
 ```json
 {"gate": {"mode": "warn", "include": ["*.tpl"], "exclude": ["docs/*"]}}
 ```
 
-### Tester tout le site et le revoir avant chaque publication
+### Test the whole site and review it before every publish
 
-`/perfect-gui:ui-scenes [url]` explore le site ou l'application Web et inventorie tout ce qu'un utilisateur peut faire : pages, boutons, menus, onglets, champs, listes, formulaires, paramètres d'URL, réglages (thème, langue, tri, filtres). Il génère ensuite une suite de scènes versionnée dans `ui-scenes/scenes.json`, par exemple 257 scènes rejouées sur mobile et bureau.
+`/perfect-gui:ui-scenes [url]` explores the website or Web application and lists everything a user can do: pages, buttons, menus, tabs, fields, lists, forms, URL parameters, settings (theme, language, sorting, filters). It then generates a versioned scene suite in `ui-scenes/scenes.json`, for example 257 scenes replayed on mobile and desktop.
 
-Avant chaque republication, toutes les scènes sont rejouées et revues. La revue détecte les bugs graphiques (débordements, superpositions, texte rogné, contraste), les incohérences avec l'environnement (bouton mort, défilement bloqué, thème sombre mal adapté, contenu non traduit, police de secours, style différent d'une page à l'autre, erreurs JavaScript) et compare chaque capture à sa référence.
+Before every new publish, all scenes are replayed and reviewed. The review detects graphical bugs (overflows, overlaps, clipped text, contrast) and inconsistencies with the environment (dead button, locked scrolling, dark theme not adapted, untranslated content, fallback font, style that differs from one page to another, JavaScript errors), and compares each screenshot with its baseline.
 
-Un hook refuse `git push`, `npm publish`, `vercel`, `netlify deploy`, etc. tant que la dernière revue n'est pas au statut `ok` sur l'interface exacte qui part. Désactivation : `UI_AUDIT_PUBLISH_GATE=off` (ou `ask`).
+A hook refuses `git push`, `npm publish`, `vercel`, `netlify deploy`, and similar commands until the latest review has the status `ok` on the exact interface being shipped. To disable it: `UI_AUDIT_PUBLISH_GATE=off` (or `ask`).
 
-La même suite peut être exportée en `@playwright/test` (`--export-playwright tests/ui-scenes.spec.ts`) pour tourner en CI. Le détail est dans [exploration.md](plugins/perfect-gui/skills/ui-audit-gate/reference/exploration.md).
+The same suite can be exported to `@playwright/test` (`--export-playwright tests/ui-scenes.spec.ts`) to run in CI. Details are in [exploration.md](plugins/perfect-gui/skills/ui-audit-gate/reference/exploration.md).
 
-Les preuves (captures, mesures, rapports) vont dans `.ui-audit/` à la racine du projet audité. Ce dossier est ajouté au `.gitignore` par défaut.
+Evidence (screenshots, measurements, reports) goes into `.ui-audit/` at the root of the audited project. This folder is added to `.gitignore` by default.
 
-## Contenu
+## Contents
 
 ```text
-.claude-plugin/marketplace.json        catalogue du dépôt
+.claude-plugin/marketplace.json        repository catalogue
 plugins/perfect-gui/
   .claude-plugin/plugin.json
   skills/ui-audit-gate/
-    SKILL.md                           consignes du skill (workflow en 9 étapes, règles, décision)
-    reference/                         contrôles, configurations, recherche, sévérité, barrière, outils, appareils, rapport
-    config/                            viewports, niveaux et contrôles fondamentaux, jeux de données limites
-    scripts/                           capture, inspection, clavier, redimensionnement, diff, impact, recherche, vérification
+    SKILL.md                           skill instructions (9-step workflow, rules, decision)
+    reference/                         controls, configurations, research, severity, gate, tools, devices, report, exploration
+    config/                            viewports, levels and fundamental controls, edge-case data sets
+    scripts/                           capture, inspection, keyboard, resize, diff, impact, research, verification, exploration, scenes, review
     schemas/ templates/
-  commands/ui-audit.md                 commande /perfect-gui:ui-audit
-  hooks/                               hook Stop de barrière
-  tests/                               application de test à défauts injectables et scénarios d'acceptation
-CAHIER_DES_CHARGES.md                  spécification d'origine
+  commands/ui-audit.md                 /perfect-gui:ui-audit command
+  commands/ui-scenes.md                /perfect-gui:ui-scenes command
+  hooks/                               Stop gate hook and pre-publish hook
+  tests/                               test application with injectable defects, test site and acceptance scenarios
+CAHIER_DES_CHARGES.md                  original specification (in French)
 ```
 
-## Ce qui est automatisé, assisté ou humain
+## What is automated, assisted or human
 
-| Domaine | Automatisé par les scripts | Assisté (outil et jugement) | Humain uniquement |
+| Area | Automated by the scripts | Assisted (tool plus judgement) | Human only |
 |---|---|---|---|
-| Géométrie, débordements, superpositions | Mesures et détection | Intention d'alignement | |
-| Contraste | Fonds unis | Fonds image ou dégradé | |
-| Clavier, focus | Ordre, pièges, visibilité, masquage | Logique de l'ordre | |
-| Sémantique, ARIA | Règles axe-core, arbre d'accessibilité | Pertinence des noms | Restitution par lecteur d'écran réel |
-| Contenu | Longueurs, pseudo-localisation | Clarté | Ton, adéquation au public |
-| Parcours | Exécution scriptée | Effort, friction | Compréhension réelle (test utilisateur) |
-| Responsive | Émulation de viewports, redimensionnement, clavier virtuel émulé | Choix d'adaptation | Appareil réel (charnière, clavier natif) |
-| Esthétique | | Comparaison aux références | Jugement de marque |
+| Geometry, overflows, overlaps | Measurement and detection | Alignment intent | |
+| Contrast | Solid backgrounds | Image or gradient backgrounds | |
+| Keyboard, focus | Order, traps, visibility, obscuring | Logic of the order | |
+| Semantics, ARIA | axe-core rules, accessibility tree | Relevance of names | Output from a real screen reader |
+| Content | Lengths, pseudo-localisation | Clarity | Tone, fit for the audience |
+| User journeys | Scripted execution | Effort, friction | Real understanding (user testing) |
+| Responsive | Viewport emulation, resizing, emulated virtual keyboard | Adaptation choices | Real device (hinge, native keyboard) |
+| Aesthetics | | Comparison with references | Brand judgement |
 
 ## Tests
 
@@ -88,4 +91,4 @@ CAHIER_DES_CHARGES.md                  spécification d'origine
 python3 plugins/perfect-gui/tests/run_scenarios.py
 ```
 
-La suite sert une application de test qui contient des défauts injectables. Elle vérifie que les scripts détectent chaque défaut (bouton décalé, texte qui dépasse d'un bouton, superposition qui masque une action, régression responsive, focus piégé, erreur de formulaire mal signalée, traduction trop longue, régression introduite par une correction, perte d'état au redimensionnement, clavier virtuel qui masque une action) sans faux positif sur la version saine. Elle couvre aussi les cas Web indisponible et capture impossible, les règles de décision, le journal de recherche, les hooks et l'analyse d'impact. Elle explore un site de test multi-pages, en génère les scènes, vérifie que la version saine passe la revue et que la version cassée fait remonter chaque défaut injecté (bouton mort, menu qui déborde, défilement bloqué, thème sombre mal adapté, contenu non traduit, erreur JavaScript, style incohérent, changements visuels).
+The suite serves a test application with injectable defects. It checks that the scripts detect each defect (offset button, text overflowing a button, overlay hiding an action, responsive regression, focus trap, poorly reported form error, translation too long, regression introduced by a fix, state lost on resize, virtual keyboard hiding an action) with no false positive on the healthy version. It also covers the Web-unavailable and capture-failed cases, the decision rules, the research log, the hooks and the impact analysis. It explores a multi-page test site, generates its scenes, checks that the healthy version passes the review and that the broken version reports every injected defect (dead button, overflowing menu, locked scrolling, dark theme not adapted, untranslated content, JavaScript error, inconsistent style, visual changes).

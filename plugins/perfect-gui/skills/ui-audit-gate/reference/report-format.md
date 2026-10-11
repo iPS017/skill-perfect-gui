@@ -1,12 +1,12 @@
-# Format du rapport et des preuves
+# Report and evidence format
 
-## Arborescence d'un run
+## Run tree
 
 ```text
 .ui-audit/
-  config.json                 # optionnel : réglages du hook et du projet
-  research-cache.json         # références réutilisables (revalidation obligatoire)
-  exceptions.json             # exceptions encore ouvertes
+  config.json                 # optional: hook and project settings
+  research-cache.json         # reusable references (revalidation required)
+  exceptions.json             # exceptions still open
   RUN-20261011-1430-checkout/
     scope.md
     impact.json
@@ -14,93 +14,93 @@
     coverage.json
     research/log.json
     research/references.json
-    before/<config_id>/<nom>__<etat>.png
+    before/<config_id>/<name>__<state>.png
     before/manifests/<config_id>.json
     after/... after-fix-1/... diff/...
     inspect/<config_id>/inspect.json | annotated.png | aria-snapshot.txt
     keyboard/<config_id>/keyboard.json
     findings/DEF-001.json
     report.json
-    report.md                 # produit par verify_report.py --render
+    report.md                 # produced by verify_report.py --render
 ```
 
 ## `report.json`
 
-`init_run.py` crée ce squelette. L'agent le complète, puis `verify_report.py --apply --render` écrit la décision et produit `report.md`.
+`init_run.py` creates this skeleton. The agent completes it, then `verify_report.py --apply --render` writes the decision and produces `report.md`.
 
 ```json
 {
   "run_id": "RUN-20261011-1430-checkout",
-  "titre": "Pied de formulaire du checkout",
-  "cree_le": "2026-10-11T14:30:00Z",
-  "declenchement": "C1 | C2 | C3",
-  "demande": "Texte de la demande utilisateur",
-  "objectif": "...",
-  "criteres_acceptation": ["..."],
-  "perimetre": {"zones": ["Checkout/Footer"], "rayon_impact": ["Button (14 instances)"]},
-  "niveau": "N2",
-  "niveau_calcule": "N2",
-  "couverture_reduite": false,
-  "justification_reduction": null,
-  "mode": "complet | maquette | sans_execution",
-  "baseline": "avant | first-render | indisponible",
-  "environnement": {"outils": ["playwright 1.x", "chromium 1xx"], "fidelite": "emulation"},
-  "hypotheses": [{"hypothese": "...", "source": "...", "impact_si_fausse": "..."}],
-  "recherche": {"statut": "realisee | partielle | non_realisee", "cause": null},
-  "comparaisons": [{"ref": "REF-001", "observation": "...", "principe": "...", "ecart": "...", "adaptation": "...", "benefice": "...", "nature": "EXIGENCE"}],
-  "changement_visuel": true,
-  "controles": [
-    {"id": "GEO-03", "statut": "reussi", "nature": ["visuel", "structurel"], "configs": ["mobile-..."], "preuves": ["inspect/mobile-.../inspect.json"]},
-    {"id": "ACC-11", "statut": "non_verifie", "raison": "Aucun lecteur d'écran disponible", "raison_type": "humain"},
-    {"id": "DAT-01", "statut": "non_applicable", "raison": "Aucun tableau dans le périmètre"}
+  "title": "Checkout form footer",
+  "created_at": "2026-10-11T14:30:00Z",
+  "trigger": "C1 | C2 | C3",
+  "request": "Text of the user's request",
+  "goal": "...",
+  "acceptance_criteria": ["..."],
+  "scope": {"zones": ["Checkout/Footer"], "impact_radius": ["Button (14 instances)"]},
+  "level": "N2",
+  "computed_level": "N2",
+  "reduced_coverage": false,
+  "reduction_justification": null,
+  "mode": "full | mockup | no_execution",
+  "baseline": "before | first-render | unavailable",
+  "environment": {"tools": ["playwright 1.x", "chromium 1xx"], "fidelity": "emulation"},
+  "assumptions": [{"assumption": "...", "source": "...", "impact_if_wrong": "..."}],
+  "research": {"status": "done | partial | not_done", "cause": null},
+  "comparisons": [{"ref": "REF-001", "observation": "...", "principle": "...", "gap": "...", "adaptation": "...", "benefit": "...", "nature": "REQUIREMENT"}],
+  "visual_change": true,
+  "controls": [
+    {"id": "GEO-03", "status": "passed", "nature": ["visual", "structural"], "configs": ["mobile-..."], "evidence": ["inspect/mobile-.../inspect.json"]},
+    {"id": "ACC-11", "status": "not_verified", "reason": "No screen reader available", "reason_type": "human"},
+    {"id": "DAT-01", "status": "not_applicable", "reason": "No table in the scope"}
   ],
-  "defauts": ["voir la fiche ci-dessous"],
-  "corrections": ["voir severity-and-fixes.md"],
-  "variantes": [],
-  "avant_apres": [{"config_id": "mobile-...", "avant": "before/.../checkout__normal.png", "apres": "after-fix-1/.../checkout__normal.png", "diff": "diff/...png", "commentaire": "Différence attendue : bouton élargi"}],
-  "regressions": [{"controle": "DS-05", "resultat": "Aucune différence inattendue sur 6 écrans"}],
+  "findings": ["see the record below"],
+  "fixes": ["see severity-and-fixes.md"],
+  "variants": [],
+  "before_after": [{"config_id": "mobile-...", "before": "before/.../checkout__normal.png", "after": "after-fix-1/.../checkout__normal.png", "diff": "diff/...png", "comment": "Expected difference, wider button"}],
+  "regressions": [{"control": "DS-05", "result": "No unexpected difference on 6 screens"}],
   "coverage": "coverage.json",
-  "limites": ["Clavier virtuel natif non testé (émulation)"],
-  "verifications_humaines": ["ACC-11 lecteur d'écran sur le parcours de paiement"],
+  "limitations": ["Native virtual keyboard not tested (emulation)"],
+  "human_checks": ["ACC-11 screen reader on the payment flow"],
   "decision": null
 }
 ```
 
-Valeurs de `decision` : `VALIDEE_PROTOCOLE_COMPLET`, `VALIDEE_PERIMETRE_TESTE`, `VALIDEE_AVEC_EXCEPTIONS`, `NON_VALIDEE`, `VALIDATION_LIMITEE`.
+Possible values of `decision` are `VALIDATED_FULL_PROTOCOL`, `VALIDATED_TESTED_SCOPE`, `VALIDATED_WITH_EXCEPTIONS`, `NOT_VALIDATED` and `LIMITED_VALIDATION`.
 
-## Fiche de défaut (`defauts[]` ou `findings/DEF-xxx.json`)
+## Finding record (`findings[]` or `findings/DEF-xxx.json`)
 
 ```json
 {
   "id": "DEF-012",
-  "titre": "Libellé « Confirmer la réservation » rogné à 320 px",
-  "controle": "CTA-01",
-  "ecran_composant": "Checkout / Button(primary)",
-  "preconditions": "Panier avec 1 article, utilisateur connecté",
-  "donnees": "fixture typical, langue de",
+  "title": "Label \"Confirm booking\" clipped at 320 px",
+  "control": "CTA-01",
+  "screen_component": "Checkout / Button(primary)",
+  "preconditions": "Cart with 1 item, user signed in",
+  "data": "fixture typical, language de",
   "config_id": "mobile-narrow-w320h640-z100-light-de-DE-m-chromium",
-  "etapes": ["Ouvrir /checkout", "Défiler jusqu'au pied de page"],
-  "attendu": "Libellé entièrement visible dans la surface du bouton",
-  "observe": "Texte coupé après « Reservierung best » ; scrollWidth=212, clientWidth=176",
-  "interpretation": "white-space:nowrap et largeur fixe du conteneur",
-  "nature": "EXIGENCE",
-  "preuves": ["inspect/mobile-narrow-.../annotated.png", "inspect/mobile-narrow-.../inspect.json"],
+  "steps": ["Open /checkout", "Scroll to the footer"],
+  "expected": "Label fully visible within the button surface",
+  "observed": "Text cut after \"Reservierung best\"; scrollWidth=212, clientWidth=176",
+  "interpretation": "white-space:nowrap and fixed container width",
+  "nature": "REQUIREMENT",
+  "evidence": ["inspect/mobile-narrow-.../annotated.png", "inspect/mobile-narrow-.../inspect.json"],
   "reproductions": "2/2",
-  "severite": "majeure",
-  "priorite": "P1",
-  "confiance": "elevee",
+  "severity": "major",
+  "priority": "P1",
+  "confidence": "high",
   "effort": "S",
-  "statut": "ouvert | corrige | echoue_non_resolu | accepte_exception",
-  "introduit_par_correction": false,
-  "retest": {"statut": "reussi", "config_id": "...", "preuves": ["after-fix-1/..."]},
+  "status": "open | fixed | failed_unresolved | accepted_exception",
+  "introduced_by_fix": false,
+  "retest": {"status": "passed", "config_id": "...", "evidence": ["after-fix-1/..."]},
   "exception": null,
-  "cause_blocage": null,
-  "action_requise": null
+  "blocking_cause": null,
+  "required_action": null
 }
 ```
 
-`nature` prend la valeur `EXIGENCE`, `HYPOTHESE` ou `PREFERENCE`. Les défauts peuvent être écrits directement dans `report.json > defauts` ou dans `findings/*.json`. `verify_report.py` fusionne les deux sources par identifiant.
+`nature` takes the value `REQUIREMENT`, `HYPOTHESIS` or `PREFERENCE`. Findings can be written directly into `report.json > findings` or into `findings/*.json`. `verify_report.py` merges both sources by ID.
 
-## Manifeste de configuration (`manifests/<config_id>.json`)
+## Configuration manifest (`manifests/<config_id>.json`)
 
-Écrit par `capture.py`. Il contient le viewport CSS, le DPR, le zoom, le thème, la locale, le fuseau, les préférences, le pointeur, le moteur et sa version, la fidélité, l'horloge figée, l'URL, les étapes de navigation et la révision git.
+Written by `capture.py`. It contains the CSS viewport, the DPR, the zoom, the theme, the locale, the time zone, the preferences, the pointer, the engine and its version, the fidelity, the frozen clock, the URL, the navigation steps and the git revision.

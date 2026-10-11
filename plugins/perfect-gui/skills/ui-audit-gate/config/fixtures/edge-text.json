@@ -1,17 +1,17 @@
 {
-  "court": "OK",
+  "short": "OK",
   "long_fr": "Confirmer la réservation et accepter les conditions générales de vente ainsi que la politique de confidentialité",
   "long_de": "Reservierung bestätigen und die Allgemeinen Geschäftsbedingungen sowie die Datenschutzerklärung akzeptieren",
-  "mot_sans_espace": "Donaudampfschifffahrtselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
-  "url_longue": "https://exemple.fr/un/chemin/tres/long/avec/des/parametres?utm_source=newsletter&utm_medium=email&utm_campaign=automne-2026",
-  "email_long": "prenom.nom-compose.tres-long@sous-domaine.entreprise-exemple.fr",
-  "nom_compose": "Marie-Évangéline de la Tour d'Auvergne-Lauraguais",
+  "no_space_word": "Donaudampfschifffahrtselektrizitätenhauptbetriebswerkbauunterbeamtengesellschaft",
+  "long_url": "https://exemple.fr/un/chemin/tres/long/avec/des/parametres?utm_source=newsletter&utm_medium=email&utm_campaign=automne-2026",
+  "long_email": "prenom.nom-compose.tres-long@sous-domaine.entreprise-exemple.fr",
+  "compound_name": "Marie-Évangéline de la Tour d'Auvergne-Lauraguais",
   "emojis": "Merci \ud83c\udf89\ud83d\udc4d\ud83c\udffd pour votre commande \ud83d\uded2",
   "cjk": "予約を確認して利用規約に同意する",
-  "arabe_rtl": "تأكيد الحجز والموافقة على الشروط",
-  "hebreu_rtl": "אישור ההזמנה והסכמה לתנאים",
-  "mixte_bidi": "Commande n° 4521 : تأكيد الحجز (réf. AB-12)",
+  "arabic_rtl": "تأكيد الحجز والموافقة على الشروط",
+  "hebrew_rtl": "אישור ההזמנה והסכמה לתנאים",
+  "mixed_bidi": "Commande n° 4521 : تأكيد الحجز (réf. AB-12)",
   "devanagari": "आरक्षण की पुष्टि करें",
-  "espaces_seuls": "   ",
-  "vide": ""
+  "spaces_only": "   ",
+  "empty": ""
 }

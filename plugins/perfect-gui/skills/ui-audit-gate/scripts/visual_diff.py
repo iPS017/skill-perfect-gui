@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Diff pixel entre deux dossiers de captures (mêmes chemins relatifs).
+"""Pixel diff between two screenshot directories (same relative paths).
 
-Chaque différence doit ensuite être qualifiée : attendue (liée à la correction) ou régression.
+Each difference must then be qualified: expected (tied to the fix) or regression.
 
-Exemple :
+Example:
   python3 visual_diff.py --before .ui-audit/RUN-x/before --after .ui-audit/RUN-x/after-fix-1 --out .ui-audit/RUN-x/diff
 """
 import argparse
@@ -35,7 +35,7 @@ def compare(before_path, after_path, out_path, tolerance):
         out_path.parent.mkdir(parents=True, exist_ok=True)
         overlay.save(out_path)
         entry["diff_image"] = str(out_path)
-    entry["status"] = "taille-differente" if before.size != after.size else ("change" if changed else "identique")
+    entry["status"] = "size-different" if before.size != after.size else ("changed" if changed else "identical")
     return entry
 
 
@@ -44,10 +44,10 @@ def main():
     parser.add_argument("--before", required=True)
     parser.add_argument("--after", required=True)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--tolerance", type=int, default=16, help="Écart par canal ignoré (anticrénelage)")
-    parser.add_argument("--max-ratio", type=float, default=0.0, help="Ratio de pixels changés toléré avant de signaler")
+    parser.add_argument("--tolerance", type=int, default=16, help="Per-channel difference ignored (anti-aliasing)")
+    parser.add_argument("--max-ratio", type=float, default=0.0, help="Ratio of changed pixels tolerated before flagging")
     args = parser.parse_args()
-    ensure_module("PIL", "pillow", "Installer Pillow (setup.sh) ou comparer les captures visuellement")
+    ensure_module("PIL", "pillow", "Install Pillow (setup.sh) or compare the screenshots visually")
 
     before_root, after_root, out_root = Path(args.before), Path(args.after), Path(args.out)
     before_files = {p.relative_to(before_root) for p in before_root.rglob("*.png")}
@@ -55,21 +55,21 @@ def main():
     results = []
     for rel in sorted(before_files | after_files):
         if rel not in after_files:
-            results.append({"file": str(rel), "status": "absent-apres"})
+            results.append({"file": str(rel), "status": "missing-after"})
             continue
         if rel not in before_files:
-            results.append({"file": str(rel), "status": "absent-avant"})
+            results.append({"file": str(rel), "status": "missing-before"})
             continue
         entry = compare(before_root / rel, after_root / rel, out_root / rel, args.tolerance)
         entry["file"] = str(rel)
-        entry["signale"] = entry["status"] == "taille-differente" or entry["changed_ratio"] > args.max_ratio
+        entry["flagged"] = entry["status"] == "size-different" or entry["changed_ratio"] > args.max_ratio
         results.append(entry)
 
-    flagged = [r for r in results if r.get("signale") or r["status"].startswith("absent")]
+    flagged = [r for r in results if r.get("flagged") or r["status"].startswith("missing")]
     emit({
         "tool": "visual_diff", "created": now_iso(), "compared": len(results), "flagged": len(flagged),
         "result": "issues" if flagged else "clean",
-        "rappel": "Qualifier chaque différence : attendue ou régression. Conditions de capture identiques requises (manifestes).",
+        "reminder": "Qualify each difference: expected or regression. Identical capture conditions required (manifests).",
         "items": results,
     })
 

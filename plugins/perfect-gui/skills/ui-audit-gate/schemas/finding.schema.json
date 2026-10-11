@@ -1,48 +1,48 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Fiche de défaut ui-audit-gate",
+  "title": "ui-audit-gate finding record",
   "type": "object",
-  "required": ["id", "titre", "controle", "severite", "priorite", "confiance", "nature", "statut", "attendu", "observe", "preuves"],
+  "required": ["id", "title", "control", "severity", "priority", "confidence", "nature", "status", "expected", "observed", "evidence"],
   "properties": {
     "id": {"type": "string", "pattern": "^DEF-[0-9]{3,}$"},
-    "titre": {"type": "string"},
-    "controle": {"type": "string", "description": "Identifiant de la matrice, par exemple CTA-01, ou PRJ-xx"},
-    "ecran_composant": {"type": "string"},
+    "title": {"type": "string"},
+    "control": {"type": "string", "description": "Matrix identifier, for example CTA-01, or PRJ-xx"},
+    "screen_component": {"type": "string"},
     "preconditions": {"type": "string"},
-    "donnees": {"type": "string"},
+    "data": {"type": "string"},
     "config_id": {"type": "string"},
-    "etapes": {"type": "array", "items": {"type": "string"}},
-    "attendu": {"type": "string"},
-    "observe": {"type": "string", "description": "Faits et mesures seulement"},
-    "interpretation": {"type": "string", "description": "Cause supposée, séparée de l'observé"},
-    "nature": {"enum": ["EXIGENCE", "HYPOTHESE", "PREFERENCE"]},
-    "preuves": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "steps": {"type": "array", "items": {"type": "string"}},
+    "expected": {"type": "string"},
+    "observed": {"type": "string", "description": "Facts and measurements only"},
+    "interpretation": {"type": "string", "description": "Presumed cause, kept separate from the observed facts"},
+    "nature": {"enum": ["REQUIREMENT", "HYPOTHESIS", "PREFERENCE"]},
+    "evidence": {"type": "array", "items": {"type": "string"}, "minItems": 1},
     "reproductions": {"type": "string"},
-    "severite": {"enum": ["critique", "majeure", "moderee", "mineure"]},
-    "priorite": {"enum": ["P1", "P2", "P3"]},
-    "confiance": {"enum": ["elevee", "moyenne", "faible"]},
+    "severity": {"enum": ["critical", "major", "moderate", "minor"]},
+    "priority": {"enum": ["P1", "P2", "P3"]},
+    "confidence": {"enum": ["high", "medium", "low"]},
     "effort": {"enum": ["S", "M", "L"]},
-    "statut": {"enum": ["ouvert", "corrige", "echoue_non_resolu", "accepte_exception"]},
-    "introduit_par_correction": {"type": "boolean"},
+    "status": {"enum": ["open", "fixed", "failed_unresolved", "accepted_exception"]},
+    "introduced_by_fix": {"type": "boolean"},
     "retest": {
       "type": ["object", "null"],
       "properties": {
-        "statut": {"enum": ["reussi", "echoue", "non_verifie"]},
+        "status": {"enum": ["passed", "failed", "not_verified"]},
         "config_id": {"type": "string"},
-        "preuves": {"type": "array", "items": {"type": "string"}}
+        "evidence": {"type": "array", "items": {"type": "string"}}
       }
     },
     "exception": {
       "type": ["object", "null"],
-      "required": ["acceptee_par", "date", "citation"],
+      "required": ["accepted_by", "date", "quote"],
       "properties": {
-        "acceptee_par": {"type": "string"},
+        "accepted_by": {"type": "string"},
         "date": {"type": "string"},
-        "citation": {"type": "string", "description": "Les mots de l'utilisateur qui accepte l'exception"},
-        "echeance": {"type": "string"}
+        "quote": {"type": "string", "description": "The words of the user who accepts the exception"},
+        "due": {"type": "string"}
       }
     },
-    "cause_blocage": {"type": ["string", "null"]},
-    "action_requise": {"type": ["string", "null"]}
+    "blocking_cause": {"type": ["string", "null"]},
+    "required_action": {"type": ["string", "null"]}
   }
 }

@@ -1,47 +1,47 @@
-# Cadrage : {{RUN_ID}}
+# Scope: {{RUN_ID}}
 
-Créé le {{DATE}}.
+Created on {{DATE}}.
 
-## Demande
+## Request
 
-> Recopier la demande de l'utilisateur.
+> Copy the user's request here.
 
-## Objectif et tâche principale
+## Goal and main task
 
-- Objectif :
-- Tâche principale de l'utilisateur :
-- Parcours importants (1 à 3) :
+- Goal:
+- User's main task:
+- Key user flows (1 to 3):
 
-## Critères d'acceptation
+## Acceptance criteria
 
 - [ ] 
 
-## Périmètre
+## Scope
 
-- Écrans et composants modifiés :
-- Rayon d'impact (voir impact.json) :
-- Niveau calculé / niveau retenu (justifier toute baisse) :
+- Changed screens and components:
+- Impact radius (see impact.json):
+- Computed level / chosen level (justify any downgrade):
 
-## Contraintes trouvées
+## Constraints found
 
-- Design system et tokens :
-- Navigateurs et plateformes cibles (browserslist, docs) :
-- Référentiel d'accessibilité :
-- Langues et locales :
-- Autres contraintes métier :
+- Design system and tokens:
+- Target browsers and platforms (browserslist, docs):
+- Accessibility standard:
+- Languages and locales:
+- Other business constraints:
 
-## Lancement de l'application
+## Starting the application
 
-- Commande :
-- URL :
-- Données de test, comptes fictifs :
+- Command:
+- URL:
+- Test data, fake accounts:
 
-## Hypothèses
+## Assumptions
 
-| Hypothèse | Source ou raison | Impact si fausse |
+| Assumption | Source or reason | Impact if wrong |
 |---|---|---|
 | | | |
 
-## Questions bloquantes posées
+## Blocking questions asked
 
-- Aucune.
+- None.

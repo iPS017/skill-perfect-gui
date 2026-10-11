@@ -24,14 +24,14 @@ AXE_URLS = [
 ]
 
 DESTRUCTIVE_PATTERN = (
-    r"(supprim|effac|delete|remove|retirer|vider|purge|pay|payer|paiement|achet|buy|checkout|commander|order now|"
-    r"valider (la |ma )?commande|confirmer (l'achat|le paiement|la commande)|envoyer|send|publier|publish|"
+    r"(supprim|effac|delete|erase|remove|retirer|vider|purge|pay|payer|paiement|achet|buy|purchase|checkout|commander|order now|place order|"
+    r"valider (la |ma )?commande|confirmer (l'achat|le paiement|la commande)|confirm (purchase|payment|order)|envoyer|send|publier|publish|"
     r"d[ée]connex|logout|log out|sign out|se d[ée]connecter|d[ée]sinscri|unsubscribe|r[ée]silier|"
-    r"cancel subscription|transf[ée]r|reset|r[ée]initialis|archiver|bannir|ban )"
+    r"cancel subscription|transf[ée]r|reset|r[ée]initialis|archive|bannir|ban )"
 )
 SETTING_PATTERN = (
     r"(th[eè]me|mode sombre|mode clair|sombre|clair|dark|light|langue|language|lang|locale|devise|currency|"
-    r"taille du texte|font|police|contraste|contrast|densit[ée]|density|affichage|display|vue|view|tri|sort|"
+    r"taille du texte|text size|font|police|contraste|contrast|densit[ée]|density|affichage|display|vue|view|tri|sort|"
     r"filtr|filter|unit[ée]|pays|country|r[ée]gion|fuseau|timezone)"
 )
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -69,7 +69,10 @@ def is_ui_path(path, include=(), exclude=()):
     suffix = Path(path).suffix.lower()
     if suffix in UI_EXTENSIONS:
         return True
-    return suffix in UI_SCRIPT_EXTENSIONS and any(hint in path.lower() for hint in UI_PATH_HINTS)
+    if suffix not in UI_SCRIPT_EXTENSIONS:
+        return False
+    lowered = "/" + path.lower()
+    return any(f"/{hint}" in lowered for hint in UI_PATH_HINTS)
 
 
 def ui_fingerprint(root, include=(), exclude=()):
@@ -143,7 +146,7 @@ def ensure_playwright():
         os.execv(str(candidate), [str(candidate), *sys.argv])
     capability_missing(
         "playwright",
-        f"Proposer à l'utilisateur : bash \"{SCRIPTS_DIR / 'setup.sh'}\" (installe Playwright et Pillow dans {VENV_DIR})",
+        f"Suggest to the user: bash \"{SCRIPTS_DIR / 'setup.sh'}\" (installs Playwright and Pillow into {VENV_DIR})",
     )
 
 
@@ -165,7 +168,7 @@ def git_revision(cwd=None):
         dirty = subprocess.run(["git", "status", "--porcelain"], cwd=cwd, capture_output=True, text=True, timeout=5)
         if rev.returncode != 0:
             return None
-        return rev.stdout.strip() + (" + modifications non commitées" if dirty.stdout.strip() else "")
+        return rev.stdout.strip() + (" + uncommitted changes" if dirty.stdout.strip() else "")
     except (OSError, subprocess.SubprocessError):
         return None
 
@@ -184,7 +187,7 @@ def resolve_viewports(spec):
             continue
         matches = [v for v in catalog if v["id"] == token or v["priority"] == token]
         if not matches:
-            raise SystemExit(f"Viewport inconnu : {token} (voir config/viewports.json)")
+            raise SystemExit(f"Unknown viewport: {token} (see config/viewports.json)")
         selected.extend(matches)
     unique = {}
     for viewport in selected:
@@ -194,23 +197,23 @@ def resolve_viewports(spec):
 
 def add_browser_args(parser, default_viewports="P0"):
     parser.add_argument("--url", required=True)
-    parser.add_argument("--viewports", default=default_viewports, help="Identifiants, P0/P1/P2 ou LxH, séparés par des virgules")
+    parser.add_argument("--viewports", default=default_viewports, help="Comma-separated ids, P0/P1/P2 or WxH")
     parser.add_argument("--theme", default="light", choices=["light", "dark", "no-preference"])
-    parser.add_argument("--locale", default="fr-FR")
-    parser.add_argument("--timezone", default="Europe/Paris")
-    parser.add_argument("--zoom", type=float, default=1.0, help="Zoom navigateur : 2 = 200 %%")
+    parser.add_argument("--locale", default="en-US")
+    parser.add_argument("--timezone", default="UTC")
+    parser.add_argument("--zoom", type=float, default=1.0, help="Browser zoom: 2 = 200%%")
     parser.add_argument("--reduced-motion", default="no-preference", choices=["reduce", "no-preference"])
     parser.add_argument("--forced-colors", action="store_true")
     parser.add_argument("--engine", default="chromium", choices=["chromium", "firefox", "webkit"])
-    parser.add_argument("--browser-path", help="Exécutable du navigateur (seule tentative si fourni)")
+    parser.add_argument("--browser-path", help="Browser executable (only attempt when provided)")
     parser.add_argument("--headed", action="store_true")
-    parser.add_argument("--actions", help="Fichier JSON ou JSON en ligne : liste d'actions à une clé")
-    parser.add_argument("--storage-state", help="Fichier d'état de session Playwright (jamais copié dans le run)")
-    parser.add_argument("--freeze-time", help="Horloge figée, ISO 8601")
+    parser.add_argument("--actions", help="JSON file or inline JSON: list of single-key actions")
+    parser.add_argument("--storage-state", help="Playwright session state file (never copied into the run)")
+    parser.add_argument("--freeze-time", help="Frozen clock, ISO 8601")
     parser.add_argument("--wait-ms", type=int, default=150)
-    parser.add_argument("--keep-motion", action="store_true", help="Ne pas neutraliser animations et transitions")
+    parser.add_argument("--keep-motion", action="store_true", help="Do not disable animations and transitions")
     parser.add_argument("--timeout-ms", type=int, default=30000)
-    parser.add_argument("--respect-csp", action="store_true", help="Ne pas contourner la CSP (les injections du skill peuvent alors échouer)")
+    parser.add_argument("--respect-csp", action="store_true", help="Do not bypass the CSP (the skill's injections may then fail)")
 
 
 def build_config(viewport, args):
@@ -277,7 +280,7 @@ def browser_session(args):
         except BrowserUnavailable as exc:
             capability_missing(
                 "browser",
-                "Aucun navigateur lançable. Essayer --engine, --browser-path, ou `playwright install chromium` via setup.sh --with-browsers.",
+                "No launchable browser. Try --engine, --browser-path, or `playwright install chromium` via setup.sh --with-browsers.",
                 exc.attempts,
             )
         try:
@@ -323,13 +326,13 @@ def open_page(browser, cfg, args):
     page.on("pageerror", lambda e: logs.append({"type": "pageerror", "text": str(e)[:500]}))
     page.on("requestfailed", lambda r: None if ignored(r.url) else logs.append({"type": "requestfailed", "text": f"{r.method} {r.url[:300]}"}))
     page.on("response", lambda r: logs.append({"type": f"http-{r.status}", "text": r.url[:300]}) if r.status >= 400 and not ignored(r.url) else None)
-    clock = "non figée"
+    clock = "not frozen"
     if getattr(args, "freeze_time", None):
         try:
             page.clock.set_fixed_time(datetime.fromisoformat(args.freeze_time.replace("Z", "+00:00")))
             clock = args.freeze_time
         except Exception as exc:
-            clock = f"non figée (API indisponible : {type(exc).__name__})"
+            clock = f"not frozen (API unavailable: {type(exc).__name__})"
     return context, page, logs, clock
 
 
@@ -364,14 +367,14 @@ def load_actions(value):
     text = path.read_text(encoding="utf-8") if path.exists() else value
     actions = json.loads(text)
     if not isinstance(actions, list):
-        raise SystemExit("--actions doit être une liste JSON d'objets à une clé")
+        raise SystemExit("--actions must be a JSON list of single-key objects")
     return actions
 
 
 def run_actions(page, actions, base_url, log):
     for step in actions:
         if not isinstance(step, dict) or len(step) != 1:
-            raise SystemExit(f"Action invalide : {step!r}")
+            raise SystemExit(f"Invalid action: {step!r}")
         kind, value = next(iter(step.items()))
         if kind == "goto":
             page.goto(urljoin(base_url, value), wait_until="load")
@@ -408,7 +411,7 @@ def run_actions(page, actions, base_url, log):
         elif kind == "set_viewport":
             page.set_viewport_size({"width": int(value[0]), "height": int(value[1])})
         else:
-            raise SystemExit(f"Action inconnue : {kind}")
+            raise SystemExit(f"Unknown action: {kind}")
         log.append(step)
 
 
@@ -437,24 +440,24 @@ def manifest(cfg, browser_info, args, clock, steps):
     zoom = cfg["zoom"] or 1.0
     return {
         "config_id": config_id(cfg),
-        "fidelite": "emulation",
-        "moteur": f"{browser_info['engine']} {browser_info['version']} ({browser_info['launch']})",
+        "fidelity": "emulation",
+        "engine": f"{browser_info['engine']} {browser_info['version']} ({browser_info['launch']})",
         "viewport_css": [round(cfg["width"] / zoom), round(cfg["height"] / zoom)],
-        "fenetre_css": [cfg["width"], cfg["height"]],
+        "window_css": [cfg["width"], cfg["height"]],
         "dpr": cfg["dpr"],
         "zoom": zoom,
         "theme": cfg["theme"],
-        "langue": cfg["locale"],
-        "fuseau": cfg["timezone"],
+        "locale": cfg["locale"],
+        "timezone": cfg["timezone"],
         "preferences": {"reduced_motion": cfg["reduced_motion"], "forced_colors": cfg["forced_colors"]},
-        "pointeur": cfg["pointer"],
-        "animations_neutralisees": not getattr(args, "keep_motion", False),
-        "csp_contournee": not getattr(args, "respect_csp", False),
-        "horloge": clock,
+        "pointer": cfg["pointer"],
+        "animations_disabled": not getattr(args, "keep_motion", False),
+        "csp_bypassed": not getattr(args, "respect_csp", False),
+        "clock": clock,
         "url": args.url,
-        "etapes_navigation": steps,
+        "navigation_steps": steps,
         "revision": git_revision(),
-        "cree_le": now_iso(),
+        "created_at": now_iso(),
     }
 
 
@@ -469,7 +472,7 @@ def annotate(screenshot_path, boxes, out_path):
         return None
     image = Image.open(screenshot_path).convert("RGB")
     draw = ImageDraw.Draw(image)
-    palette = {"critique": (200, 0, 40), "majeure": (230, 90, 0), "info": (0, 90, 200)}
+    palette = {"critical": (200, 0, 40), "major": (230, 90, 0), "info": (0, 90, 200)}
     for number, box in enumerate(boxes, 1):
         color = palette.get(box.get("level"), (200, 0, 40))
         x, y, w, h = box["x"], box["y"], box["w"], box["h"]
@@ -491,7 +494,7 @@ def load_axe(allow_download=True):
     if cached.exists():
         return cached.read_text(encoding="utf-8"), str(cached)
     if not allow_download:
-        return None, "axe-core absent du cache et téléchargement désactivé"
+        return None, "axe-core missing from cache and download disabled"
     import urllib.request
 
     errors = []
@@ -500,13 +503,13 @@ def load_axe(allow_download=True):
             with urllib.request.urlopen(url, timeout=20) as response:
                 source = response.read().decode("utf-8")
             if "axe" not in source[:2000]:
-                raise ValueError("contenu inattendu")
+                raise ValueError("unexpected content")
             cached.parent.mkdir(parents=True, exist_ok=True)
             cached.write_text(source, encoding="utf-8")
             return source, url
         except Exception as exc:
             errors.append(f"{url}: {type(exc).__name__}")
-    return None, "téléchargement d'axe-core impossible : " + "; ".join(errors)
+    return None, "could not download axe-core: " + "; ".join(errors)
 
 
 def base_parser(description):

@@ -1,24 +1,24 @@
-# Exploration et revue des scènes avant publication
+# Exploration and scene review before release
 
-L'audit par modification (workflow en 9 étapes) vérifie ce qui vient de changer. Ce mode-ci couvre **tout ce qu'un utilisateur peut faire** sur le site ou l'application Web. Il génère une suite de scènes versionnée et la rejoue en entier avant chaque republication.
+The per-change audit (9-step workflow) checks what has just changed. This mode covers **everything a user can do** on the website or web application. It generates a versioned scene suite and replays all of it before each release.
 
 ## Cycle
 
 ```text
-1. explore_site.py        site réel -> ui-scenes/site-map.json   (inventaire de tout ce qui est faisable)
-2. generate_scenarios.py  site-map  -> ui-scenes/scenes.json     (une scène par action, option, paramètre, réglage)
-3. play_scenarios.py --mode baseline                              (captures de référence, une fois)
-4. avant chaque publication :
-   play_scenarios.py      rejoue toutes les scènes sur chaque viewport, compare, détecte
-   -> statut ok | a-revoir | echec | incomplet  ->  ui-scenes/last-review.json + runs/<date>/review.md
-5. corriger, ou accepter les changements visuels voulus (--accept), puis relancer la revue
-6. le hook de pré-publication laisse passer git push, npm publish, vercel, etc. seulement si
-   la dernière revue est « ok », complète, et faite sur l'interface exacte qui part
+1. explore_site.py        real site -> ui-scenes/site-map.json   (inventory of everything that can be done)
+2. generate_scenarios.py  site-map  -> ui-scenes/scenes.json     (one scene per action, option, parameter, setting)
+3. play_scenarios.py --mode baseline                              (baseline screenshots, once)
+4. before each release:
+   play_scenarios.py      replays every scene on every viewport, compares, detects
+   -> status ok | needs-review | failed | incomplete  ->  ui-scenes/last-review.json + runs/<date>/review.md
+5. fix, or accept intended visual changes (--accept), then rerun the review
+6. the pre-publish hook lets git push, npm publish, vercel, etc. through only if
+   the last review is "ok", complete, and was run on the exact interface being shipped
 ```
 
-Après un changement de structure (nouvelle page, nouveau formulaire), relancer 1 et 2. Les identifiants des scènes existantes ne changent pas. Les nouvelles s'ajoutent et celles qui ont disparu sont listées dans `retirees`.
+After a structural change (new page, new form), rerun 1 and 2. The IDs of existing scenes do not change. New scenes are added and the ones that disappeared are listed in `removed`.
 
-## Commandes
+## Commands
 
 ```bash
 SK="$SKILL_DIR/scripts"
@@ -27,101 +27,101 @@ python3 "$SK/generate_scenarios.py" --site-map ui-scenes/site-map.json --out ui-
         --export-playwright tests/ui-scenes.spec.ts
 python3 "$SK/play_scenarios.py" --suite ui-scenes --url http://localhost:3000/ --mode baseline
 python3 "$SK/play_scenarios.py" --suite ui-scenes --url http://localhost:3000/ --viewports mobile,laptop --workers 4
-python3 "$SK/play_scenarios.py" --suite ui-scenes --accept S-0012,S-0040     # changements visuels voulus
+python3 "$SK/play_scenarios.py" --suite ui-scenes --accept S-0012,S-0040     # intended visual changes
 ```
 
-Options utiles :
-- explore : `--max-pages`, `--max-depth`, `--include` et `--exclude` (regex de chemins), `--reveal-budget` (bascules ouvertes pour trouver les contrôles cachés), `--storage-state` (session connectée) ;
-- generate : `--max-options`, `--env-pages`, `--max-scenes` ;
-- play : `--viewports` (par défaut mobile,laptop ; N3 : `P0,P1`), `--scenes`, `--categories`, `--workers`, `--allow-mutations`, `--max-diff-ratio`, `--mask` (zones volontairement dynamiques : carrousel, date, publicité).
+Useful options:
+- explore takes `--max-pages`, `--max-depth`, `--include` and `--exclude` (path regexes), `--reveal-budget` (toggles opened to find hidden controls), `--storage-state` (signed-in session);
+- generate takes `--max-options`, `--env-pages`, `--max-scenes`;
+- play takes `--viewports` (default mobile,laptop; `P0,P1` at N3), `--scenes`, `--categories`, `--workers`, `--allow-mutations`, `--max-diff-ratio`, `--mask` (intentionally dynamic areas such as a carousel, a date or an ad).
 
-Les zones dynamiques à masquer en permanence se déclarent aussi dans `scenes.json` (`"masques": [".carousel", "#live-date"]`). Les images en chargement différé sont chargées avant chaque capture. Si une revue contre sa propre référence montre des changements, le contenu n'est pas déterministe : il faut fixer les données de test ou masquer la zone, jamais monter le seuil à l'aveugle. Une page refusée (erreur HTTP, protection anti-robot) est signalée et n'est pas contournée : explorer plutôt l'environnement de développement ou de test.
+Dynamic areas to mask permanently can also be declared in `scenes.json` (`"masks": [".carousel", "#live-date"]`). Lazy-loaded images are loaded before each screenshot. If a review against its own baseline shows changes, the content is not deterministic: pin the test data or mask the area, never raise the threshold blindly. A refused page (HTTP error, bot protection) is reported and not bypassed. Explore the development or test environment instead.
 
-## Ce que les scènes couvrent
+## What the scenes cover
 
-| Catégorie | Scènes générées |
+| Category | Generated scenes |
 |---|---|
-| page | Chargement de chaque page découverte, y compris les variantes de paramètres d'URL |
-| controle | Chaque bouton, ancre ou action sûre, avec détection d'effet (bouton mort) |
-| bascule | Ouvrir, puis fermer (Échap pour un menu ou un popup, second clic pour un panneau dépliable) |
-| onglet, menu | Activation de chaque onglet et de chaque élément de menu |
-| liste, case, radio, curseur | Chaque option (échantillon au-delà de `--max-options`), cocher et décocher, bornes min et max |
-| formulaire | Envoi vide, valeurs invalides, valeurs valides, contenus très longs |
-| parametre-url | Chaque valeur observée, plus une valeur inattendue et une valeur vide |
-| reglage | Thème, langue, tri, filtres, unités, etc. (contrôles reconnus comme réglages) |
-| environnement | Thème sombre système, mouvement réduit, zoom 200 % (bureau), chaque langue `hreflang` |
+| page | Loading of each discovered page, including URL parameter variants |
+| control | Each safe button, anchor or action, with effect detection (dead button) |
+| toggle | Open, then close (Escape for a menu or popup, second click for a collapsible panel) |
+| tab, menu | Activation of each tab and each menu item |
+| select, checkbox, radio, range | Each option (sampled beyond `--max-options`), check and uncheck, min and max bounds |
+| form | Empty submit, invalid values, valid values, very long content |
+| url-param | Each observed value, plus an unexpected value and an empty value |
+| setting | Theme, language, sort, filters, units, etc. (controls recognized as settings) |
+| environment | System dark theme, reduced motion, 200% zoom (desktop), each `hreflang` language |
 
-Les contrôles cachés qu'une interaction révèle (menu, dialogue, accordéon) sont joués avec l'action qui les révèle.
+Hidden controls revealed by an interaction (menu, dialog, accordion) are played together with the action that reveals them.
 
-## Ce que chaque étape vérifie
+## What each step checks
 
-À chaque `snapshot` : débordement horizontal, texte rogné, superposition (hors modale et superpositions ouvertes), taille des cibles, contraste, erreurs de formulaire, alignement, images, noms accessibles. S'y ajoutent les contrôles de cohérence avec l'environnement :
+Each `snapshot` step checks horizontal overflow, clipped text, overlap (outside modals and open overlays), target size, contrast, form errors, alignment, images, accessible names. Consistency checks against the environment are added on top:
 
-| Anomalie | Contrôle | Bloquante |
+| Anomaly | Control | Blocking |
 |---|---|---|
-| `action-sans-effet` : clic sans changement du DOM, de l'URL, du défilement ni requête | PAR-08 | oui |
-| `defilement-bloque` : page impossible à faire défiler sans dialogue ouvert | STK-08 | oui |
-| `theme-non-adapte` : grande zone claire dans une page sombre | COL-03 | oui |
-| `contenu-non-traduit` : plus de la moitié des textes inchangés après changement de langue | LOC-02 | oui |
-| `erreur-javascript` : exception non gérée | ROB-01 | oui |
-| `lang-non-mis-a-jour` : textes traduits mais attribut `lang` inchangé | ACC-12 | non |
-| `police-non-chargee` : police web déclarée mais rendu de secours | TXT-05 | non |
-| `incoherence-style` : un composant diffère de ses semblables sur le site (police, taille, rayon, couleur de lien) | DS-03 | non |
-| `fermeture-echap-inoperante` : menu ou popup qui reste ouvert après Échap | STK-03 | non |
-| `controle-indisponible-a-ce-viewport` : contrôle introuvable ou non cliquable sur ce viewport | NAV-06 | non (à juger) |
-| `theme-sombre-ignore` : le site déclare un thème sombre mais la page reste claire | COL-03 | non |
-| `requete-bloquee` : requête POST, PUT ou DELETE bloquée par la garde | - | non |
+| `dead-click`, a click with no change to the DOM, the URL or the scroll position, and no request | PAR-08 | yes |
+| `scroll-locked`, a page that cannot be scrolled with no dialog open | STK-08 | yes |
+| `theme-not-adapted`, a large light area in a dark page | COL-03 | yes |
+| `untranslated-content`, more than half of the texts unchanged after a language change | LOC-02 | yes |
+| `javascript-error`, an unhandled exception | ROB-01 | yes |
+| `lang-not-updated`, texts translated but the `lang` attribute unchanged | ACC-12 | no |
+| `font-not-loaded`, a web font declared but a fallback rendered | TXT-05 | no |
+| `style-inconsistency`, a component that differs from its peers on the site (font, size, radius, link color) | DS-03 | no |
+| `escape-does-not-close`, a menu or popup that stays open after Escape | STK-03 | no |
+| `control-unavailable-at-viewport`, a control not found or not clickable at this viewport | NAV-06 | no (judgment call) |
+| `dark-scheme-ignored`, the site declares a dark theme but the page stays light | COL-03 | no |
+| `blocked-request`, a POST, PUT or DELETE request blocked by the guard | - | no |
 
-Chaque capture est comparée à sa référence (`changements_visuels`). Une différence n'est ni bonne ni mauvaise : elle doit être revue. Soit elle est voulue et on l'accepte avec `--accept`, soit c'est une régression et on la corrige.
+Each screenshot is compared with its baseline (`visual_changes`). A difference is neither good nor bad, it must be reviewed. Either it is intended and accepted with `--accept`, or it is a regression and gets fixed.
 
-## Statuts de revue
+## Review statuses
 
-| Statut | Condition | Publication |
+| Status | Condition | Publishing |
 |---|---|---|
-| `ok` | Toutes les scènes exécutées, aucune anomalie bloquante, aucun changement visuel non accepté | autorisée |
-| `a-revoir` | Changements visuels ou nouvelles captures sans référence | bloquée jusqu'à acceptation ou correction |
-| `echec` | Au moins une anomalie bloquante non acceptée | bloquée |
-| `incomplet` | Scènes en erreur, sélection partielle (`--scenes`, `--categories`) | bloquée |
+| `ok` | Every scene executed, no blocking anomaly, no unaccepted visual change | allowed |
+| `needs-review` | Visual changes or new screenshots without a baseline | blocked until accepted or fixed |
+| `failed` | At least one unaccepted blocking anomaly | blocked |
+| `incomplete` | Scenes in error, partial selection (`--scenes`, `--categories`) | blocked |
 
-Une anomalie bloquante ne s'accepte (`--accept-anomaly CLÉ --reason ... --accepted-by ...`) que sur décision explicite de l'utilisateur. Elle est alors consignée dans `ui-scenes/known-issues.json`. L'agent ne l'accepte jamais de lui-même.
+A blocking anomaly is only accepted (`--accept-anomaly KEY --reason ... --accepted-by ...`) on the user's explicit decision. It is then recorded in `ui-scenes/known-issues.json`. The agent never accepts one on its own.
 
-## Sécurité
+## Safety
 
-- Les actions destructives (supprimer, payer, envoyer, se déconnecter, résilier, etc.) ne sont pas générées. Elles sont listées dans `non_couvert`.
-- Toutes les requêtes autres que GET, HEAD et OPTIONS sont bloquées pendant l'exploration et la revue, sauf avec `--allow-mutations`, à réserver à un environnement de test avec des données fictives.
-- Les sessions connectées passent par `--storage-state`. Aucun mot de passe réel dans les scènes.
+- Destructive actions (delete, pay, send, sign out, cancel a subscription, etc.) are not generated. They are listed in `not_covered`.
+- All requests other than GET, HEAD and OPTIONS are blocked during exploration and review, except with `--allow-mutations`, which is reserved for a test environment with fake data.
+- Signed-in sessions go through `--storage-state`. No real password in the scenes.
 
-## Fichiers de la suite
+## Suite files
 
-| Fichier | Versionné | Rôle |
+| File | Versioned | Role |
 |---|---|---|
-| `ui-scenes/scenes.json` | oui | Suite de scènes, identifiants stables |
-| `ui-scenes/site-map.json` | oui (conseillé) | Inventaire de ce qui est faisable |
-| `ui-scenes/baseline/` | oui (Git LFS si volumineux) | Captures de référence |
-| `ui-scenes/known-issues.json` | oui | Anomalies acceptées par l'utilisateur |
-| `ui-scenes/runs/` | non (ajouté au `.gitignore`) | Captures, diffs, rapports de chaque revue |
-| `ui-scenes/last-review.json` | non | État lu par le hook de pré-publication |
-| `tests/ui-scenes.spec.ts` | au choix | Même suite en `@playwright/test` pour la CI (`npx playwright test --update-snapshots` la première fois) |
+| `ui-scenes/scenes.json` | yes | Scene suite, stable IDs |
+| `ui-scenes/site-map.json` | yes (recommended) | Inventory of what can be done |
+| `ui-scenes/baseline/` | yes (Git LFS if large) | Baseline screenshots |
+| `ui-scenes/known-issues.json` | yes | Anomalies accepted by the user |
+| `ui-scenes/runs/` | no (added to `.gitignore`) | Screenshots, diffs, reports of each review |
+| `ui-scenes/last-review.json` | no | State read by the pre-publish hook |
+| `tests/ui-scenes.spec.ts` | optional | Same suite as `@playwright/test` for CI (`npx playwright test --update-snapshots` the first time) |
 
-## Barrière de publication
+## Publish gate
 
-Le hook `PreToolUse` du plugin intercepte les commandes de publication (`git push`, `npm`, `pnpm`, `yarn` et `bun publish`, `vercel`, `netlify deploy`, `firebase deploy`, `fly deploy`, `wrangler deploy`, `gh release create`, `docker push`, `npm run deploy`, `eas submit`, `fastlane`, etc.). Il refuse la commande si :
-- aucune revue complète n'existe ;
-- `scenes.json` a changé depuis la revue ;
-- un fichier d'interface a changé depuis la revue (empreinte des fichiers suivis et non suivis) ;
-- la revue n'est pas au statut `ok`.
+The plugin's `PreToolUse` hook intercepts publish commands (`git push`, `npm`, `pnpm`, `yarn` and `bun publish`, `vercel`, `netlify deploy`, `firebase deploy`, `fly deploy`, `wrangler deploy`, `gh release create`, `docker push`, `npm run deploy`, `eas submit`, `fastlane`, etc.). It refuses the command if:
+- no complete review exists;
+- `scenes.json` has changed since the review;
+- an interface file has changed since the review (fingerprint of tracked and untracked files);
+- the review status is not `ok`.
 
-Il n'agit que si le projet possède `ui-scenes/scenes.json` (ou le chemin indiqué dans `.ui-audit/config.json > publish_gate.suite`). Réglages : `UI_AUDIT_PUBLISH_GATE=block|ask|off`, ou `publish_gate.mode`. Des commandes supplémentaires se déclarent dans `publish_gate.patterns`.
+It only acts if the project has `ui-scenes/scenes.json` (or the path set in `.ui-audit/config.json > publish_gate.suite`). Settings are `UI_AUDIT_PUBLISH_GATE=block|ask|off`, or `publish_gate.mode`. Additional commands are declared in `publish_gate.patterns`.
 
-## Applications non Web
+## Non-web applications
 
-- **Web, PWA, hybride servi en local** (Capacitor, Ionic, React Native Web, Flutter Web, Tauri ou Electron avec leur serveur de développement) : cycle complet, en pointant `--url` vers le serveur de développement.
-- **Application native pure** (iOS, Android, desktop) : ces scripts ne la pilotent pas. Le skill peut rédiger la liste des scènes à partir du code (écrans, routes, réglages) et les rejouer de façon assistée, par computer use ou avec les outils de la plateforme (XCUITest, Espresso, UI Automation). Ce sont alors des vérifications assistées, déclarées comme telles dans le rapport, pas une revue automatique.
+- **Web, PWA, hybrid served locally** (Capacitor, Ionic, React Native Web, Flutter Web, Tauri or Electron with their development server): full cycle, pointing `--url` at the development server.
+- **Pure native application** (iOS, Android, desktop): these scripts do not drive it. The skill can write the list of scenes from the code (screens, routes, settings) and replay them in assisted mode, through computer use or with the platform tools (XCUITest, Espresso, UI Automation). These are then assisted checks, declared as such in the report, not an automated review.
 
-## Limites
+## Limits
 
-- Une option à la fois : les combinaisons de plusieurs réglages ne sont pas toutes générées. Ajouter à la main les combinaisons critiques dans `scenes.json` (même format, nouvel identifiant).
-- Pas de téléversement de fichier, de glisser-déposer ni de geste multi-doigts générés automatiquement.
-- Les menus qui ne s'ouvrent qu'au survol ne sont pas découverts. Ils sont listés dans `non_couvert` quand leurs éléments existent mais restent cachés.
-- `action-sans-effet` a une confiance moyenne : une action peut agir sur un canvas, le presse-papiers ou le son sans changer le DOM.
-- Les captures dépendent du moteur et de la machine : référence et revue doivent tourner dans le même environnement (même navigateur, même OS, idéalement en CI).
+- One option at a time: combinations of several settings are not all generated. Add the critical combinations by hand in `scenes.json` (same format, new ID).
+- No file upload, drag and drop or multi-finger gesture is generated automatically.
+- Menus that only open on hover are not discovered. They are listed in `not_covered` when their items exist but stay hidden.
+- `dead-click` has medium confidence, since an action can act on a canvas, the clipboard or the sound without changing the DOM.
+- Screenshots depend on the engine and the machine, so baseline and review must run in the same environment (same browser, same OS, ideally in CI).

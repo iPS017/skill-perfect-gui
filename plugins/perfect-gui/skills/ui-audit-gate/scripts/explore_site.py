@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Explore un site ou une application Web et inventorie tout ce qu'un utilisateur peut faire :
-pages, liens, boutons, menus, onglets, bascules, champs, listes, cases, formulaires, paramètres d'URL,
-réglages (thème, langue, tri, filtres), variantes de langue et points de rupture CSS.
+"""Explore a website or web application and inventory everything a user can do:
+pages, links, buttons, menus, tabs, toggles, fields, selects, checkboxes, forms, URL parameters,
+settings (theme, language, sorting, filters), language variants and CSS breakpoints.
 
-Les éléments révélés par une interaction (menu ouvert, accordéon déplié) sont découverts aussi,
-avec les actions nécessaires pour les atteindre. Les requêtes autres que GET sont bloquées.
+Elements revealed by an interaction (open menu, expanded accordion) are discovered too,
+along with the actions needed to reach them. Requests other than GET are blocked.
 
-Exemple :
+Example:
   python3 explore_site.py --url http://localhost:3000/ --out ui-scenes/site-map.json --max-pages 40
 """
 import re
@@ -19,7 +19,7 @@ from _common import (
     stabilize, write_json,
 )
 
-REVEALING_KINDS = {"bascule", "onglet", "element-menu", "liste"}
+REVEALING_KINDS = {"toggle", "tab", "menu-item", "select"}
 CHALLENGE_TITLE = re.compile(r"(just a moment|un instant|attention required|access denied|acc[eè]s refus[ée]|captcha|verify you are human|v[ée]rification)", re.I)
 
 
@@ -38,7 +38,7 @@ def reveal(page, url, js_source, base, args, budget):
     revealed = []
     known = {c["selector"] for c in base["controls"] if c["visible"]}
     hidden = {c["selector"]: c for c in base["controls"] if not c["visible"]}
-    candidates = [c for c in base["controls"] if (c["kind"] in REVEALING_KINDS or (c["kind"] == "action" and hidden)) and c["risk"] == "sur" and c["visible"]][:budget]
+    candidates = [c for c in base["controls"] if (c["kind"] in REVEALING_KINDS or (c["kind"] == "action" and hidden)) and c["risk"] == "safe" and c["visible"]][:budget]
     for control in candidates:
         try:
             page.goto(url, wait_until="load")
@@ -55,14 +55,14 @@ def reveal(page, url, js_source, base, args, budget):
             if item["selector"] in known or not item["visible"]:
                 continue
             known.add(item["selector"])
-            item["prerequis"] = [{"click": control["selector"]}]
-            item["revele_par"] = control["selector"]
+            item["prerequisites"] = [{"click": control["selector"]}]
+            item["revealed_by"] = control["selector"]
             if item["selector"] in hidden:
                 base["controls"].remove(hidden.pop(item["selector"]))
             revealed.append(item)
         for form in after["forms"]:
             if form["selector"] not in {f["selector"] for f in base["forms"]} and form["visible"]:
-                form["prerequis"] = [{"click": control["selector"]}]
+                form["prerequisites"] = [{"click": control["selector"]}]
                 base["forms"].append(form)
     return revealed
 
@@ -70,13 +70,13 @@ def reveal(page, url, js_source, base, args, budget):
 def main():
     parser = base_parser(__doc__)
     add_browser_args(parser, default_viewports="laptop")
-    parser.add_argument("--out", required=True, help="Fichier site-map.json")
+    parser.add_argument("--out", required=True, help="site-map.json file")
     parser.add_argument("--max-pages", type=int, default=30)
     parser.add_argument("--max-depth", type=int, default=4)
-    parser.add_argument("--include", help="Regex : chemins à explorer")
-    parser.add_argument("--exclude", default=r"(logout|deconnexion|signout|/admin/delete)", help="Regex : chemins à ignorer")
-    parser.add_argument("--reveal-budget", type=int, default=15, help="Bascules ouvertes par page pour découvrir les contrôles cachés")
-    parser.add_argument("--max-query-variants", type=int, default=3, help="Variantes d'une même page avec des paramètres d'URL différents")
+    parser.add_argument("--include", help="Regex: paths to explore")
+    parser.add_argument("--exclude", default=r"(logout|deconnexion|signout|/admin/delete)", help="Regex: paths to skip")
+    parser.add_argument("--reveal-budget", type=int, default=15, help="Toggles opened per page to discover hidden controls")
+    parser.add_argument("--max-query-variants", type=int, default=3, help="Variants of the same page with different URL parameters")
     args = parser.parse_args()
 
     js_source = (SCRIPTS_DIR / "discover.js").read_text(encoding="utf-8")
@@ -104,14 +104,14 @@ def main():
             visited.add(key)
             parsed = urlparse(url)
             if exclude and exclude.search(parsed.path):
-                skipped.append({"url": url, "raison": "exclu par --exclude"})
+                skipped.append({"url": url, "reason": "excluded by --exclude"})
                 continue
             if include and not include.search(parsed.path):
-                skipped.append({"url": url, "raison": "hors --include"})
+                skipped.append({"url": url, "reason": "outside --include"})
                 continue
             variants = path_variants.setdefault(parsed.path, 0)
             if parsed.query and variants >= args.max_query_variants:
-                skipped.append({"url": url, "raison": "trop de variantes de paramètres pour ce chemin"})
+                skipped.append({"url": url, "reason": "too many parameter variants for this path"})
                 continue
             path_variants[parsed.path] = variants + 1
             try:
@@ -122,12 +122,12 @@ def main():
                 continue
             final = urlparse(page.url)
             if final.netloc != start.netloc:
-                skipped.append({"url": url, "raison": f"redirige hors du site ({final.netloc})"})
+                skipped.append({"url": url, "reason": f"redirects outside the site ({final.netloc})"})
                 continue
             found = discover(page, js_source)
             found["status"] = response.status if response else None
             if (found["status"] or 200) >= 400 or CHALLENGE_TITLE.search(found.get("title") or ""):
-                found["acces_bloque"] = f"HTTP {found['status']}, titre « {found.get('title')} »"
+                found["access_blocked"] = f"HTTP {found['status']}, title \"{found.get('title')}\""
                 found["controls"], found["forms"], found["links"] = [], [], []
                 pages.append(found)
                 continue
@@ -155,36 +155,36 @@ def main():
             kinds[control["kind"]] = kinds.get(control["kind"], 0) + 1
     site_map = {
         "tool": "explore_site",
-        "cree_le": now_iso(),
-        "depart": args.url,
-        "origine": f"{start.scheme}://{start.netloc}",
-        "moteur": browser_info,
-        "viewport_exploration": cfg["viewport_id"],
+        "created_at": now_iso(),
+        "start": args.url,
+        "origin": f"{start.scheme}://{start.netloc}",
+        "engine": browser_info,
+        "exploration_viewport": cfg["viewport_id"],
         "pages": pages,
-        "parametres_url": params,
-        "langues": sorted({a["hreflang"] for p in pages for a in p.get("alternates", [])}),
-        "theme_sombre_css": any(p.get("supports_dark_scheme") for p in pages),
-        "points_de_rupture": sorted({b for p in pages for b in p.get("breakpoints", [])}),
-        "liens_externes": sorted(external)[:200],
-        "non_explore": {"budget_atteint": remaining[:200], "ignores": skipped[:200]},
-        "requetes_bloquees": blocked[:100],
-        "resume": {
+        "url_params": params,
+        "languages": sorted({a["hreflang"] for p in pages for a in p.get("alternates", [])}),
+        "dark_scheme_css": any(p.get("supports_dark_scheme") for p in pages),
+        "breakpoints": sorted({b for p in pages for b in p.get("breakpoints", [])}),
+        "external_links": sorted(external)[:200],
+        "not_explored": {"budget_reached": remaining[:200], "ignored": skipped[:200]},
+        "blocked_requests": blocked[:100],
+        "summary": {
             "pages": len(pages),
-            "controles": sum(kinds.values()),
-            "par_type": kinds,
-            "formulaires": sum(len(p.get("forms", [])) for p in pages),
-            "pages_restantes_non_explorees": len(remaining),
+            "controls": sum(kinds.values()),
+            "by_kind": kinds,
+            "forms": sum(len(p.get("forms", [])) for p in pages),
+            "remaining_unexplored_pages": len(remaining),
         },
     }
-    blocked_pages = [{"url": p["url"], "raison": p["acces_bloque"]} for p in pages if p.get("acces_bloque")]
-    site_map["pages_bloquees"] = blocked_pages
-    site_map["resume"]["pages_bloquees"] = len(blocked_pages)
+    blocked_pages = [{"url": p["url"], "reason": p["access_blocked"]} for p in pages if p.get("access_blocked")]
+    site_map["blocked_pages"] = blocked_pages
+    site_map["summary"]["blocked_pages"] = len(blocked_pages)
     if blocked_pages:
-        site_map["avertissement"] = ("Pages refusées (erreur HTTP, protection anti-robot ou défi) : leur contenu n'a pas été exploré. "
-                                     "Ne pas contourner : explorer l'environnement de développement ou de test, ou fournir une session (--storage-state).")
+        site_map["warning"] = ("Pages refused (HTTP error, bot protection or challenge): their content was not explored. "
+                                     "Do not bypass this: explore the development or test environment, or provide a session (--storage-state).")
     write_json(args.out, site_map)
-    emit({"tool": "explore_site", "out": str(Path(args.out)), **site_map["resume"], "avertissement": site_map.get("avertissement"),
-          "langues": site_map["langues"], "points_de_rupture": site_map["points_de_rupture"][:20]})
+    emit({"tool": "explore_site", "out": str(Path(args.out)), **site_map["summary"], "warning": site_map.get("warning"),
+          "languages": site_map["languages"], "breakpoints": site_map["breakpoints"][:20]})
 
 
 if __name__ == "__main__":

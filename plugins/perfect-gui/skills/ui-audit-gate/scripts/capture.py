@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Captures reproductibles avec manifeste par configuration.
+"""Reproducible screenshots with a manifest per configuration.
 
-Sortie : <out>/<config_id>/<name>__<state>.png et <out>/manifests/<config_id>.json
+Output: <out>/<config_id>/<name>__<state>.png and <out>/manifests/<config_id>.json
 
-Exemple :
-  python3 capture.py --url http://localhost:5173/ --viewports P0 --out .ui-audit/RUN-x/before --name accueil --state normal
+Example:
+  python3 capture.py --url http://localhost:5173/ --viewports P0 --out .ui-audit/RUN-x/before --name home --state normal
 """
 from pathlib import Path
 
@@ -18,10 +18,10 @@ def main():
     parser = base_parser(__doc__)
     add_browser_args(parser)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--name", default="page", help="Nom de l'écran")
-    parser.add_argument("--state", default="normal", help="Code d'état (voir reference/configurations.md)")
-    parser.add_argument("--viewport-only", action="store_true", help="Capturer seulement la partie visible")
-    parser.add_argument("--selector", help="Capturer seulement cet élément")
+    parser.add_argument("--name", default="page", help="Screen name")
+    parser.add_argument("--state", default="normal", help="State code (see reference/configurations.md)")
+    parser.add_argument("--viewport-only", action="store_true", help="Capture only the visible part")
+    parser.add_argument("--selector", help="Capture only this element")
     args = parser.parse_args()
 
     out_root = Path(args.out)
@@ -44,8 +44,8 @@ def main():
                 existing = read_json(manifest_path, {}) or {}
                 existing.update({k: v for k, v in data.items() if k != "captures"})
                 existing.setdefault("captures", [])
-                existing["captures"] = [c for c in existing["captures"] if c["fichier"] != str(target.relative_to(out_root))]
-                existing["captures"].append({"fichier": str(target.relative_to(out_root)), "ecran": args.name, "etat": args.state, "selecteur": args.selector, "cree_le": now_iso()})
+                existing["captures"] = [c for c in existing["captures"] if c["file"] != str(target.relative_to(out_root))]
+                existing["captures"].append({"file": str(target.relative_to(out_root)), "screen": args.name, "state": args.state, "selector": args.selector, "created_at": now_iso()})
                 write_json(manifest_path, existing)
                 captures.append({"config_id": cid, "file": str(target), "manifest": str(manifest_path), "console_errors": len([e for e in logs if e["type"] in ("error", "pageerror")])})
                 context.close()

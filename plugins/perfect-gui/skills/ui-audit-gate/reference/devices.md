@@ -1,36 +1,36 @@
-# Appareils nommés et classes d'écran
+# Named devices and screen classes
 
-## Règle
+## Rule
 
-Aucune dimension, disponibilité ou capacité d'appareil ne vient de la mémoire. Quand un appareil est nommé (par l'utilisateur ou par un brief) :
+No device dimension, availability or capability comes from memory. When a device is named (by the user or in a brief):
 
-1. Chercher la page officielle du constructeur et, si utile, sa documentation développeur.
-2. Relever, avec la date de consultation : appellation exacte, disponibilité, taille et définition des écrans, navigateur par défaut, capacités Web exposées (segments, posture).
-3. Convertir en pixels CSS seulement si la source donne la définition et le facteur d'échelle, ou si un profil d'émulation officiel existe (profils d'appareil de Playwright ou de Chrome DevTools, en citant la version). Sinon, raisonner par classe d'écran.
-4. Consigner la source avec `research_log.py ref`.
+1. Find the manufacturer's official page and, if useful, its developer documentation.
+2. Record, with the access date: exact name, availability, screen size and resolution, default browser, web capabilities exposed (segments, posture).
+3. Convert to CSS pixels only if the source gives the resolution and the scale factor, or if an official emulation profile exists (Playwright or Chrome DevTools device profiles, citing the version). Otherwise, reason by screen class.
+4. Log the source with `research_log.py ref`.
 
-Si le nom ne correspond à aucun produit vérifiable, le rapport le dit et raisonne par classe d'écran. Exemple : « Apple Duo » ne correspond à aucun produit qu'on puisse confirmer comme établi. Le « Surface Duo » de Microsoft est un appareil double écran distinct, à rapprocher seulement si une source le confirme et si c'était l'intention. « Samsung Z Flip » désigne une gamme de pliables à clapet (Galaxy Z Flip) dont le modèle et la génération sont à préciser et à vérifier.
+If the name matches no verifiable product, the report says so and reasons by screen class. Example: "Apple Duo" matches no product that can be confirmed as established. Microsoft's "Surface Duo" is a distinct dual-screen device, to be related only if a source confirms it and if that was the intent. "Samsung Z Flip" refers to a line of clamshell foldables (Galaxy Z Flip) whose model and generation must be specified and verified.
 
-## Classes d'écran
+## Screen classes
 
-| Classe | Caractéristique | Ce qu'on peut émuler | Ce qui demande un appareil |
+| Class | Characteristic | What can be emulated | What requires a device |
 |---|---|---|---|
-| Mobile étroit | Environ 320 à 360 px CSS | Largeur, DPR, tactile | Clavier natif, barres système |
-| Mobile courant ou large | Environ 375 à 430 px CSS | Idem | Idem |
-| Pliable à clapet fermé | Petit écran externe | Taille si sourcée | Disponibilité réelle d'un navigateur sur cet écran |
-| Pliable à clapet ouvert | Écran très allongé | Taille si sourcée | Pliure, posture |
-| Pliable livre fermé | Écran étroit et haut | Taille si sourcée | Changement d'écran actif |
-| Pliable livre ouvert | Quasi carré, proche d'une tablette | Taille si sourcée, transitions de largeur | Charnière, posture, continuité de l'app |
-| Double écran | Deux surfaces séparées | Segments si le navigateur les expose | Charnière physique |
-| Tablette | Environ 768 à 1180 px CSS | Largeur, orientation | Clavier natif, stylet |
+| Narrow mobile | About 320 to 360 CSS px | Width, DPR, touch | Native keyboard, system bars |
+| Common or large mobile | About 375 to 430 CSS px | Same | Same |
+| Closed clamshell foldable | Small external screen | Size if sourced | Actual availability of a browser on that screen |
+| Open clamshell foldable | Very tall screen | Size if sourced | Fold, posture |
+| Closed book foldable | Narrow, tall screen | Size if sourced | Switching the active screen |
+| Open book foldable | Nearly square, close to a tablet | Size if sourced, width transitions | Hinge, posture, app continuity |
+| Dual screen | Two separate surfaces | Segments if the browser exposes them | Physical hinge |
+| Tablet | About 768 to 1180 CSS px | Width, orientation | Native keyboard, stylus |
 
-## Transitions de pliage en émulation
+## Fold transitions in emulation
 
-Une transition se reproduit comme un redimensionnement en cours d'usage :
+A transition is reproduced as a resize during use:
 
 ```bash
 python3 "$SKILL_DIR/scripts/resize_probe.py" --url URL --mode state \
-  --widths <fermé>,<ouvert>,<fermé> --height <hauteur> --actions etat-en-cours.json
+  --widths <closed>,<open>,<closed> --height <height> --actions current-state.json
 ```
 
-Le rapport précise `fidelite: emulation` et marque la charnière, la posture semi-pliée et le changement d'écran physique `non_verifie` avec `raison_type: appareil_reel`.
+The report states `fidelity: emulation` and marks the hinge, the half-folded posture and the physical screen switch `not_verified` with `reason_type: real_device`.

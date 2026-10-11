@@ -1,5 +1,5 @@
 {
-  "description": "Barrières ui-audit-gate : audit UI avant de terminer, revue complète des scènes avant toute publication.",
+  "description": "ui-audit-gate gates: UI audit before finishing, full scene review before any publish.",
   "hooks": {
     "Stop": [
       {

@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" href="data:,">
-<title>Réservation de séjour (application de test ui-audit-gate)</title>
+<title>Holiday booking (ui-audit-gate test application)</title>
 <script>
   const scenarios = new URLSearchParams(location.search).get('scn');
   (scenarios ? scenarios.split(',') : []).forEach((s) => document.documentElement.classList.add('scn-' + s.trim()));
@@ -44,71 +44,71 @@
 </style>
 </head>
 <body>
-<a class="skip-link" href="#main">Aller au contenu</a>
+<a class="skip-link" href="#main">Skip to content</a>
 <header>
-  <nav class="site-nav" aria-label="Navigation principale">
+  <nav class="site-nav" aria-label="Main navigation">
     <ul>
-      <li><a href="#main" aria-current="page">Accueil</a></li>
-      <li><a href="#offers-title">Offres</a></li>
-      <li><a href="#account-title">Compte</a></li>
+      <li><a href="#main" aria-current="page">Home</a></li>
+      <li><a href="#offers-title">Offers</a></li>
+      <li><a href="#account-title">Account</a></li>
     </ul>
   </nav>
 </header>
 <main id="main">
-  <h1>Réserver un séjour</h1>
+  <h1>Book a stay</h1>
 
   <section aria-labelledby="offers-title">
-    <h2 id="offers-title">Offres</h2>
+    <h2 id="offers-title">Offers</h2>
     <ul class="tabs">
-      <li><a class="tab" href="#details">Détails</a></li>
-      <li><a class="tab" href="#prix">Prix</a></li>
-      <li><a class="tab" href="#avis">Avis</a></li>
+      <li><a class="tab" href="#details">Details</a></li>
+      <li><a class="tab" href="#price">Price</a></li>
+      <li><a class="tab" href="#reviews">Reviews</a></li>
     </ul>
     <div class="offers">
-      <article class="offer"><h3>Chalet en montagne</h3><p>Trois nuits, petit-déjeuner compris.</p></article>
-      <article class="offer"><h3>Maison au bord de mer</h3><p>Une semaine, accès direct à la plage.</p></article>
-      <article class="offer"><h3>Appartement en ville</h3><p>Deux nuits, proche des musées.</p></article>
+      <article class="offer"><h3>Mountain chalet</h3><p>Three nights, breakfast included.</p></article>
+      <article class="offer"><h3>Seaside house</h3><p>One week, direct beach access.</p></article>
+      <article class="offer"><h3>City apartment</h3><p>Two nights, close to the museums.</p></article>
     </div>
   </section>
 
   <section aria-labelledby="actions-title">
     <h2 id="actions-title">Actions</h2>
     <div class="actions-row">
-      <button class="btn" type="button">Enregistrer</button>
-      <button class="btn btn-secondary" type="button" id="share-button">Partager</button>
-      <button class="btn btn-secondary" type="button">Imprimer</button>
+      <button class="btn" type="button">Save</button>
+      <button class="btn btn-secondary" type="button" id="share-button">Share</button>
+      <button class="btn btn-secondary" type="button">Print</button>
     </div>
   </section>
 
   <section aria-labelledby="search-title">
-    <h2 id="search-title">Recherche</h2>
-    <label for="search">Rechercher une destination</label>
+    <h2 id="search-title">Search</h2>
+    <label for="search">Search for a destination</label>
     <input id="search" type="search" autocomplete="off">
   </section>
 
   <section aria-labelledby="account-title">
-    <h2 id="account-title">Vos coordonnées</h2>
+    <h2 id="account-title">Your details</h2>
     <div class="form-shell">
       <form id="booking-form" novalidate>
         <div id="form-fields"></div>
-        <p class="hint terms">En confirmant, vous acceptez les conditions de réservation. Le séjour peut être annulé sans frais jusqu'à sept jours avant l'arrivée. Au-delà, la première nuit reste due. Les animaux de compagnie sont acceptés sur demande. Les arrivées se font entre seize et vingt heures, les départs avant onze heures. Une pièce d'identité vous sera demandée à l'accueil. Le linge de maison est fourni, le ménage de fin de séjour est inclus dans le prix affiché. Les taxes de séjour sont réglées sur place selon le barème de la commune.</p>
+        <p class="hint terms">By confirming, you accept the booking terms and conditions. The stay can be cancelled free of charge up to seven days before arrival. After that, the first night remains payable. Pets are welcome on request. Check-in is between four and eight in the evening, check-out before eleven in the morning. Proof of identity will be requested at the reception desk. Bed linen and towels are provided, and end-of-stay cleaning is included in the displayed price. Local tourist taxes are paid on site according to the rates set by the town council.</p>
         <div id="form-summary" role="alert"></div>
-        <button class="btn confirm-button" type="submit" id="submit-booking">Confirmer la réservation</button>
+        <button class="btn confirm-button" type="submit" id="submit-booking">Confirm booking</button>
       </form>
     </div>
   </section>
 
   <section aria-labelledby="payment-title">
-    <h2 id="payment-title">Paiement</h2>
-    <p>Total : 120 €</p>
-    <button class="btn" type="button" id="pay-button">Payer</button>
+    <h2 id="payment-title">Payment</h2>
+    <p>Total: 120 EUR</p>
+    <button class="btn" type="button" id="pay-button">Pay</button>
   </section>
 </main>
-<footer><p>Démo de test, aucune donnée réelle.</p></footer>
+<footer><p>Test demo, no real data.</p></footer>
 
 <section class="cookie-banner" aria-label="Cookies">
-  <p>Nous utilisons des cookies pour mesurer l'audience.</p>
-  <button class="btn" type="button">Accepter</button>
+  <p>We use cookies to measure our audience.</p>
+  <button class="btn" type="button">Accept</button>
 </section>
 
 <script>
@@ -116,10 +116,10 @@
   const fieldsHost = document.getElementById('form-fields');
   const renderFields = () => {
     fieldsHost.innerHTML = `
-      <div class="field"><label for="full-name">Nom complet</label><input id="full-name" name="full-name" autocomplete="name"></div>
-      <div class="field" id="email-field"><label for="email">Adresse e-mail (obligatoire)</label>
+      <div class="field"><label for="full-name">Full name</label><input id="full-name" name="full-name" autocomplete="name"></div>
+      <div class="field" id="email-field"><label for="email">Email address (required)</label>
         <input id="email" name="email" type="email" autocomplete="email" aria-describedby="email-hint">
-        <p class="hint" id="email-hint">Format attendu : nom@exemple.fr</p></div>`;
+        <p class="hint" id="email-hint">Expected format: name@example.com</p></div>`;
   };
   renderFields();
   if (has('09')) window.matchMedia('(min-width: 768px)').addEventListener('change', renderFields);
@@ -138,11 +138,11 @@
     summary.textContent = '';
     email.removeAttribute('aria-invalid');
     email.setAttribute('aria-describedby', 'email-hint');
-    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value)) { summary.textContent = 'Réservation enregistrée.'; return; }
+    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value)) { summary.textContent = 'Booking saved.'; return; }
     if (has('06')) {
       const message = document.createElement('p');
       message.className = 'error-message';
-      message.textContent = 'Erreur';
+      message.textContent = 'Error';
       document.getElementById('booking-form').prepend(message);
       email.style.borderColor = '#b3261e';
       return;
@@ -150,11 +150,11 @@
     const message = document.createElement('p');
     message.className = 'error-message';
     message.id = 'email-error';
-    message.textContent = 'Saisissez une adresse e-mail valide, par exemple nom@exemple.fr';
+    message.textContent = 'Enter a valid email address, for example name@example.com';
     document.getElementById('email-field').append(message);
     email.setAttribute('aria-invalid', 'true');
     email.setAttribute('aria-describedby', 'email-hint email-error');
-    summary.innerHTML = 'Le formulaire contient 1 erreur : <a href="#email">adresse e-mail</a>.';
+    summary.innerHTML = 'The form contains 1 error: <a href="#email">email address</a>.';
     email.focus();
   });
 </script>

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Parcours au clavier : ordre de tabulation, pièges de focus, indicateur visible, focus masqué,
-éléments inatteignables, fermeture par Échap des dialogues.
+"""Keyboard walk: tab order, focus traps, visible indicator, obscured focus,
+unreachable elements, closing dialogs with Escape.
 
-Exemple :
+Example:
   python3 keyboard_walk.py --url http://localhost:3000/ --viewports laptop --out .ui-audit/RUN-x/keyboard
 """
 from pathlib import Path
@@ -84,9 +84,9 @@ ACTIVE_JS = """
     key: el.dataset.uiagIdx !== undefined ? 'idx:' + el.dataset.uiagIdx : 'sel:' + selector,
     selector, name, tag: el.tagName.toLowerCase(), role: el.getAttribute('role'),
     box: { x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), w: Math.round(r.width), h: Math.round(r.height) },
-    indicator: outline ? 'outline' : (changed.length ? 'changement-de-style:' + changed.join(',') : 'aucun-detecte'),
+    indicator: outline ? 'outline' : (changed.length ? 'style-change:' + changed.join(',') : 'none-detected'),
     in_viewport: inViewport,
-    obscured: !inViewport ? 'hors-viewport' : (points.length && hidden === points.length ? 'entierement-masque' : (hidden ? 'partiellement-masque' : 'visible')),
+    obscured: !inViewport ? 'off-viewport' : (points.length && hidden === points.length ? 'fully-obscured' : (hidden ? 'partially-obscured' : 'visible')),
     occluder,
     in_dialog: dialog ? path(dialog) : null,
   };
@@ -124,21 +124,21 @@ def walk(page, max_steps, reverse=False):
         info = page.evaluate(ACTIVE_JS)
         sequence.append(info)
         if len(sequence) > 1 and info["key"] == sequence[0]["key"] and info["key"] != "BODY":
-            return sequence, "cycle-complet", None
+            return sequence, "full-cycle", None
         cycle = detect_cycle(sequence)
         if cycle is not None:
             if "BODY" in cycle or (sequence[0]["key"] in cycle):
-                return sequence, "cycle-complet", None
-            return sequence, "boucle", cycle
-    return sequence, "limite-atteinte", None
+                return sequence, "full-cycle", None
+            return sequence, "loop", cycle
+    return sequence, "limit-reached", None
 
 
 def main():
     parser = base_parser(__doc__)
     add_browser_args(parser, default_viewports="laptop")
     parser.add_argument("--out", required=True)
-    parser.add_argument("--max-steps", type=int, default=0, help="0 = nombre d'éléments focalisables + 15 (max 400)")
-    parser.add_argument("--reverse", action="store_true", help="Faire aussi le parcours avec Maj+Tab")
+    parser.add_argument("--max-steps", type=int, default=0, help="0 = number of focusable elements + 15 (max 400)")
+    parser.add_argument("--reverse", action="store_true", help="Also walk with Shift+Tab")
     args = parser.parse_args()
 
     summary = {"tool": "keyboard_walk", "url": args.url, "created": now_iso(), "configs": []}
@@ -153,7 +153,7 @@ def main():
 
             issues = []
             reached = {s["key"] for s in sequence}
-            if outcome == "boucle":
+            if outcome == "loop":
                 dialog_scope = {s["in_dialog"] for s in sequence if s["key"] in loop}
                 if len(dialog_scope) == 1 and None not in dialog_scope:
                     open_before = page.evaluate(OPEN_DIALOGS_JS)
@@ -162,19 +162,19 @@ def main():
                     open_after = page.evaluate(OPEN_DIALOGS_JS)
                     after_escape = page.evaluate(ACTIVE_JS)
                     if open_after >= open_before:
-                        issues.append({"controls": ["STK-03", "ACC-03"], "kind": "dialogue-sans-fermeture-echap", "dialog": next(iter(dialog_scope))})
+                        issues.append({"controls": ["STK-03", "ACC-03"], "kind": "dialog-not-closable-with-escape", "dialog": next(iter(dialog_scope))})
                     else:
-                        issues.append({"controls": ["STK-03"], "kind": "dialogue-ferme-par-echap-verifier-retour-focus", "focus_apres": after_escape.get("selector"), "level": "info"})
+                        issues.append({"controls": ["STK-03"], "kind": "dialog-closed-by-escape-check-focus-return", "focus_after": after_escape.get("selector"), "level": "info"})
                 else:
                     issues.append({
-                        "controls": ["ACC-03"], "kind": "piege-de-focus",
-                        "boucle": [s["selector"] for s in sequence if s["key"] in loop][: len(loop)],
-                        "note": "Vérifier qu'aucun moyen de sortie documenté n'existe (WCAG 2.1.2, à vérifier).",
+                        "controls": ["ACC-03"], "kind": "focus-trap",
+                        "loop": [s["selector"] for s in sequence if s["key"] in loop][: len(loop)],
+                        "note": "Check that no documented way out exists (WCAG 2.1.2, to confirm).",
                     })
-            elif outcome == "limite-atteinte":
-                issues.append({"controls": ["ACC-02"], "kind": "parcours-incomplet", "note": f"Cycle non bouclé en {max_steps} pressions."})
+            elif outcome == "limit-reached":
+                issues.append({"controls": ["ACC-02"], "kind": "incomplete-walk", "note": f"Cycle not closed within {max_steps} key presses."})
 
-            if outcome == "cycle-complet":
+            if outcome == "full-cycle":
                 visible_idx = {f"idx:{f['idx']}" for f in focusables if f["visible"]}
                 unreachable = sorted(visible_idx - reached, key=lambda k: int(k.split(":")[1]))
                 if unreachable:
@@ -182,26 +182,26 @@ def main():
                         "(ids) => ids.map((i) => { const el = document.querySelector(`[data-uiag-idx=\"${i}\"]`); return el ? (el.id ? '#' + el.id : el.outerHTML.slice(0, 120)) : i; })",
                         [k.split(":")[1] for k in unreachable],
                     )
-                    issues.append({"controls": ["ACC-02"], "kind": "elements-inatteignables", "items": selectors[:25]})
+                    issues.append({"controls": ["ACC-02"], "kind": "unreachable-elements", "items": selectors[:25]})
 
             stops = [s for s in sequence if s["key"] != "BODY"]
             unique_stops = list({s["key"]: s for s in stops}.values())
             for stop in unique_stops:
-                if stop["indicator"] == "aucun-detecte":
-                    issues.append({"controls": ["ACC-04"], "kind": "focus-sans-indicateur-detecte", "selector": stop["selector"], "box": stop["box"], "confiance": "moyenne"})
-                if stop["obscured"] == "entierement-masque":
-                    issues.append({"controls": ["STK-02"], "kind": "focus-entierement-masque", "selector": stop["selector"], "occluder": stop["occluder"], "box": stop["box"]})
-                elif stop["obscured"] == "hors-viewport":
-                    issues.append({"controls": ["STK-02"], "kind": "focus-hors-viewport", "selector": stop["selector"], "box": stop["box"]})
-                elif stop["obscured"] == "partiellement-masque":
-                    issues.append({"controls": ["STK-02"], "kind": "focus-partiellement-masque", "selector": stop["selector"], "occluder": stop["occluder"], "level": "info"})
+                if stop["indicator"] == "none-detected":
+                    issues.append({"controls": ["ACC-04"], "kind": "focus-without-detected-indicator", "selector": stop["selector"], "box": stop["box"], "confidence": "medium"})
+                if stop["obscured"] == "fully-obscured":
+                    issues.append({"controls": ["STK-02"], "kind": "focus-fully-obscured", "selector": stop["selector"], "occluder": stop["occluder"], "box": stop["box"]})
+                elif stop["obscured"] == "off-viewport":
+                    issues.append({"controls": ["STK-02"], "kind": "focus-off-viewport", "selector": stop["selector"], "box": stop["box"]})
+                elif stop["obscured"] == "partially-obscured":
+                    issues.append({"controls": ["STK-02"], "kind": "focus-partially-obscured", "selector": stop["selector"], "occluder": stop["occluder"], "level": "info"})
 
             backwards = []
             for prev, cur in zip(stops, stops[1:]):
                 if cur["box"]["y"] + cur["box"]["h"] < prev["box"]["y"] - 40 and not (cur["in_dialog"] or prev["in_dialog"]):
-                    backwards.append({"de": prev["selector"], "vers": cur["selector"]})
+                    backwards.append({"from": prev["selector"], "to": cur["selector"]})
             if backwards:
-                issues.append({"controls": ["ACC-04"], "kind": "retours-en-arriere-visuels-a-verifier", "items": backwards[:15], "level": "info"})
+                issues.append({"controls": ["ACC-04"], "kind": "visual-backtracks-to-check", "items": backwards[:15], "level": "info"})
 
             reverse_result = None
             if args.reverse:
@@ -216,10 +216,10 @@ def main():
                 "focusables": len(focusables),
                 "outcome": outcome,
                 "result": "issues" if blocking else "clean",
-                "order": [{"n": n, "selector": s.get("selector", "body (hors des éléments focalisables)"), "name": s.get("name"), "indicator": s.get("indicator"), "obscured": s.get("obscured")} for n, s in enumerate(sequence, 1)],
+                "order": [{"n": n, "selector": s.get("selector", "body (outside focusable elements)"), "name": s.get("name"), "indicator": s.get("indicator"), "obscured": s.get("obscured")} for n, s in enumerate(sequence, 1)],
                 "issues": issues,
                 "reverse": reverse_result,
-                "limites": "Indicateur de focus détecté par comparaison de styles (confiance moyenne) ; restitution par lecteur d'écran non testée.",
+                "limitations": "Focus indicator detected by comparing styles (medium confidence); screen reader output not tested.",
             }
             out_dir = Path(args.out) / cid
             write_json(out_dir / "keyboard.json", report)

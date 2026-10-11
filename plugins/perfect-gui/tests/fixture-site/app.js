@@ -1,27 +1,27 @@
 const broken = window.UIAG_DEFECTS === true;
-const english = {
-  'nav.home': 'Home', 'nav.catalog': 'Catalogue', 'nav.more': 'More', 'more.help': 'Help', 'more.about': 'About us',
-  'theme.toggle': 'Dark mode', 'lang.label': 'Language', 'home.title': 'Book a stay', 'home.intro': 'Find a place to stay for your next holiday.',
-  'home.offers': 'Our offers', 'offer.chalet': 'Mountain chalet', 'offer.chalet.text': 'Three nights, breakfast included.',
-  'offer.sea': 'Seaside house', 'offer.sea.text': 'One week, direct beach access.', 'offer.city': 'City flat', 'offer.city.text': 'Two nights near the museums.',
-  'filters.toggle': 'Filter offers', 'filters.text': 'Filters: price, dates, travellers.', 'contact.open': 'Contact us',
-  'contact.title': 'Contact', 'contact.text': 'Write to us at the address shown on the booking.', 'contact.close': 'Close',
-  'news.title': 'Newsletter', 'news.email': 'Email address', 'news.submit': 'Subscribe', 'danger.title': 'Account',
-  'danger.delete': 'Delete my account', 'footer.text': 'Demo site, no real data.', 'catalog.title': 'Catalogue',
-  'catalog.sort.price': 'Sort by price', 'catalog.sort.name': 'Sort by name', 'tab.details': 'Details', 'tab.reviews': 'Reviews',
-  'tab.details.text': 'All stays include bed linen.', 'tab.reviews.text': 'Guests rate our stays 4.6 out of 5.', 'catalog.add': 'Add to selection',
-  'catalog.compare': 'Compare', 'catalog.share': 'Share',
+const french = {
+  'nav.home': 'Accueil', 'nav.catalog': 'Catalogue', 'nav.more': 'Plus', 'more.help': 'Aide', 'more.about': 'À propos',
+  'theme.toggle': 'Mode sombre', 'lang.label': 'Langue', 'home.title': 'Réserver un séjour', 'home.intro': 'Trouvez un hébergement pour vos prochaines vacances.',
+  'home.offers': 'Nos offres', 'offer.chalet': 'Chalet en montagne', 'offer.chalet.text': 'Trois nuits, petit-déjeuner compris.',
+  'offer.sea': 'Maison au bord de mer', 'offer.sea.text': 'Une semaine, accès direct à la plage.', 'offer.city': 'Appartement en ville', 'offer.city.text': 'Deux nuits, proche des musées.',
+  'filters.toggle': 'Filtrer les offres', 'filters.text': 'Filtres : prix, dates, voyageurs.', 'contact.open': 'Nous contacter',
+  'contact.title': 'Contact', 'contact.text': "Écrivez-nous à l'adresse indiquée sur la réservation.", 'contact.close': 'Fermer',
+  'news.title': "Lettre d'information", 'news.email': 'Adresse e-mail', 'news.submit': "S'inscrire", 'danger.title': 'Compte',
+  'danger.delete': 'Supprimer mon compte', 'footer.text': 'Site de démonstration, aucune donnée réelle.', 'catalog.title': 'Catalogue',
+  'catalog.sort.price': 'Trier par prix', 'catalog.sort.name': 'Trier par nom', 'tab.details': 'Détails', 'tab.reviews': 'Avis',
+  'tab.details.text': 'Tous les séjours incluent le linge de maison.', 'tab.reviews.text': 'Les voyageurs notent nos séjours 4,6 sur 5.', 'catalog.add': 'Ajouter à la sélection',
+  'catalog.compare': 'Comparer', 'catalog.share': 'Partager',
 };
 const untranslatedWhenBroken = new Set(['home.intro', 'offer.chalet', 'offer.chalet.text', 'offer.sea', 'offer.sea.text', 'offer.city', 'offer.city.text', 'filters.toggle', 'contact.open', 'news.title', 'news.email', 'news.submit', 'footer.text', 'tab.details.text', 'tab.reviews.text', 'catalog.add', 'catalog.compare', 'catalog.share', 'home.offers', 'theme.toggle']);
-const french = {};
-document.querySelectorAll('[data-i18n]').forEach((node) => { french[node.dataset.i18n] = node.textContent; });
+const english = {};
+document.querySelectorAll('[data-i18n]').forEach((node) => { english[node.dataset.i18n] = node.textContent; });
 
 const applyLanguage = (lang) => {
   document.documentElement.lang = lang;
   document.querySelectorAll('[data-i18n]').forEach((node) => {
     const key = node.dataset.i18n;
-    const keepFrench = lang === 'en' && broken && untranslatedWhenBroken.has(key);
-    node.textContent = lang === 'en' && !keepFrench ? (english[key] || french[key]) : french[key];
+    const keepEnglish = lang === 'fr' && broken && untranslatedWhenBroken.has(key);
+    node.textContent = lang === 'fr' && !keepEnglish ? (french[key] || english[key]) : english[key];
   });
 };
 const languageSelect = document.getElementById('language');
@@ -78,16 +78,16 @@ if (newsletter) {
     const email = document.getElementById('news-email');
     if (!email.value.includes('@')) {
       email.setAttribute('aria-invalid', 'true');
-      status.textContent = 'Adresse e-mail invalide : saisissez par exemple nom@exemple.fr';
+      status.textContent = 'Invalid email address: enter for example name@example.com';
       email.setAttribute('aria-describedby', 'newsletter-status');
       return;
     }
     email.removeAttribute('aria-invalid');
     try {
       await fetch('/api/newsletter', { method: 'POST', body: email.value });
-      status.textContent = 'Inscription enregistrée.';
+      status.textContent = 'Subscription saved.';
     } catch (error) {
-      status.textContent = 'Le service est indisponible, réessayez plus tard.';
+      status.textContent = 'The service is unavailable, try again later.';
     }
   });
 }
@@ -106,16 +106,16 @@ document.querySelectorAll('[data-select-offer]').forEach((button) => {
   button.addEventListener('click', () => {
     const pressed = button.getAttribute('aria-pressed') !== 'true';
     button.setAttribute('aria-pressed', String(pressed));
-    document.getElementById('selection-status').textContent = pressed ? 'Offre ajoutée à la sélection.' : 'Offre retirée de la sélection.';
+    document.getElementById('selection-status').textContent = pressed ? 'Offer added to the selection.' : 'Offer removed from the selection.';
   });
 });
 
 const deleteButton = document.getElementById('delete-account');
 if (deleteButton) {
-  deleteButton.addEventListener('click', () => { document.body.dataset.accountDeleted = 'true'; document.body.innerHTML = '<p>Compte supprimé.</p>'; });
+  deleteButton.addEventListener('click', () => { document.body.dataset.accountDeleted = 'true'; document.body.innerHTML = '<p>Account deleted.</p>'; });
 }
 
-const sort = new URLSearchParams(location.search).get('tri');
-if (sort && !['prix', 'nom'].includes(sort) && broken) {
-  throw new Error(`Tri inconnu : ${sort}`);
+const sort = new URLSearchParams(location.search).get('sort');
+if (sort && !['price', 'name'].includes(sort) && broken) {
+  throw new Error(`Unknown sort: ${sort}`);
 }
