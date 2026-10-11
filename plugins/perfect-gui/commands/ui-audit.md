@@ -1,5 +1,5 @@
 ---
-description: Run the ui-audit-gate UI/UX audit on the current interface changes
+description: Perfect GUI audit - run the ui-audit-gate UI/UX audit on the current interface changes
 argument-hint: "[N1|N2|N3] [url] [scope or instructions]"
 ---
 

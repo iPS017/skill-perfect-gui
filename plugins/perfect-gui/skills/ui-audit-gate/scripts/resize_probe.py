@@ -181,6 +181,7 @@ def main():
     parser.add_argument("--action", help="Primary action to reach (keyboard mode)")
     parser.add_argument("--ratio", type=float, default=0.55, help="Share of the height left with the keyboard open")
     parser.add_argument("--settle-ms", type=int, default=350)
+    parser.add_argument("--out", help="Also write the result to this JSON file (for summarize.py)")
     args = parser.parse_args()
 
     summary = {"tool": "resize_probe", "mode": args.mode, "url": args.url, "created": now_iso(), "configs": []}
@@ -192,6 +193,9 @@ def main():
             outcome["result"] = "error" if "error" in outcome else ("issues" if outcome["issues"] else "clean")
             summary["configs"].append({"config_id": config_id(cfg), "manifest": manifest(cfg, browser_info, args, clock, steps), **outcome})
             context.close()
+    if args.out:
+        from _common import write_json
+        write_json(args.out, summary)
     emit(summary)
 
 

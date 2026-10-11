@@ -19,10 +19,29 @@
 | `research_log.py` | Research log and reference records | stdlib |
 | `verify_report.py` | Report consistency, decision, rendering of `report.md` | stdlib |
 | `setup.sh` | Creates the venv and installs Playwright and Pillow (with consent) | python3, network |
+| `login.py` | Replays the login actions of `views.json` once (secrets from `${env:NAME}`) and saves the session state | Playwright |
+| `flow_run.py` | User flows with assertions, uploads, offline steps, keyboard-only mode and automatic screenshots | Playwright |
+| `summarize.py` | Merges every output of a run into deduplicated candidates and a per-check matrix | stdlib |
+| `report_build.py` | Pre-fills `report.json` from the outputs (passed controls with evidence, placeholders, pairs, candidates) | stdlib |
 
-Options shared by the browser scripts: `--url`, `--viewports` (IDs, `P0`, `P1`, `P2` or `WxH`), `--theme light|dark`, `--locale`, `--timezone`, `--zoom`, `--reduced-motion reduce|no-preference`, `--forced-colors`, `--engine chromium|firefox|webkit`, `--browser-path`, `--headed`, `--actions` (file or JSON), `--storage-state` (authenticated session), `--freeze-time`, `--wait-ms`.
+Options shared by the browser scripts: `--url`, `--viewports` (IDs, `P0`, `P1`, `P2`, `WxH`, `app` for the Tauri or Electron window sizes, `sweep:MIN-MAX:STEP`), `--view NAME` (named view from `.ui-audit/views.json`), `--network normal|slow|offline`, `--theme light|dark`, `--locale`, `--timezone`, `--zoom`, `--reduced-motion reduce|no-preference`, `--forced-colors`, `--engine chromium|firefox|webkit`, `--browser-path`, `--headed`, `--actions` (file or JSON), `--storage-state` (authenticated session), `--freeze-time`, `--wait-ms`.
 
-Browser launch order: `--browser-path` if given (only attempt), otherwise `UI_AUDIT_BROWSER`, Playwright's Chromium, then installed Chrome, then installed Edge.
+Browser launch order: `--browser-path` if given (only attempt), otherwise `browser_path` from `.ui-audit/config.json`, `UI_AUDIT_BROWSER`, the browser remembered from the last successful launch (`~/.cache/ui-audit-gate/browser.json`), Playwright's Chromium, Chrome and Edge channels, then system binaries (`google-chrome`, `chromium`, `microsoft-edge`, macOS and Windows install paths).
+
+## Project settings
+
+`.ui-audit/config.json` holds the defaults of a project: `viewports`, `browser_path`, `storage_state`, `views_file`, `gate` and `publish_gate`. Command-line flags always win.
+
+## Projects without git
+
+- `init_run.py` stores a snapshot of the UI files in the run (`snapshot-start.json`).
+- `impact_scan.py` compares with `.ui-audit/snapshot.json`, saved when the previous audit was applied, or lists the UI files modified in the last `--since-hours` hours (default 24). Detection confidence is reported (`certain` for a snapshot, `probable` for dates).
+- The Stop hook reads the files written or edited by Claude in the current session from the transcript.
+- The pre-publish hook fingerprints UI files by walking the project (ignoring `node_modules`, `dist`, `target` and similar folders).
+
+## Desktop web-view apps
+
+Tauri and Electron render with a system web view. `--viewports app` uses the declared window sizes. Chromium matches WebView2 (Windows) and Electron, but not WKWebView (macOS) or WebKitGTK (Linux): run the key checks with `--engine webkit` as an approximation, and keep rendering in the real web view `not_verified` unless a tauri-driver (WebDriver) session or a manual check covers it. Linux screen reader checks can use Orca through AT-SPI by hand; the scripts do not drive it.
 
 ## Installation
 

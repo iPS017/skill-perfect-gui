@@ -66,14 +66,14 @@ ACTIVE_JS = """
   if (base && base.before !== getComputedStyle(el, '::before').boxShadow + getComputedStyle(el, '::before').opacity) changed.push('::before');
   const outline = cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) > 0;
   const vw = document.documentElement.clientWidth, vh = window.innerHeight;
-  const points = [[0.5, 0.5], [0.1, 0.1], [0.9, 0.1], [0.1, 0.9], [0.9, 0.9]]
+  const points = [[0.5, 0.5], [0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]
     .map(([fx, fy]) => [r.left + r.width * fx, r.top + r.height * fy])
     .filter(([x, y]) => x >= 0 && y >= 0 && x < vw && y < vh);
   let hidden = 0, occluder = null;
   for (const [x, y] of points) {
     const hit = document.elementFromPoint(x, y);
     const label = hit && hit.closest && hit.closest('label');
-    if (hit && (hit === el || el.contains(hit) || (label && label.control === el))) continue;
+    if (hit && (hit === el || el.contains(hit) || hit.contains(el) || (label && label.control === el))) continue;
     hidden += 1;
     if (!occluder && hit) occluder = path(hit);
   }

@@ -77,7 +77,14 @@ python3 "$SKILL_DIR/scripts/inspect_page.py" --url URL --actions submit-empty.js
 python3 "$SKILL_DIR/scripts/keyboard_walk.py" --url URL --viewports laptop --out "$RUN/keyboard"
 python3 "$SKILL_DIR/scripts/resize_probe.py" --url URL --mode state --widths 1366,960,600,390,1366
 python3 "$SKILL_DIR/scripts/resize_probe.py" --url URL --mode keyboard --field "#email" --action "button[type=submit]"
+python3 "$SKILL_DIR/scripts/inspect_page.py" --url URL --viewports sweep:800-1920:80 --only spacing,horizontal-overflow,text-overflow --out "$RUN/sweep"
+python3 "$SKILL_DIR/scripts/inspect_page.py" --url URL --view skin --network slow --out "$RUN/inspect-skin-slow"
+python3 "$SKILL_DIR/scripts/flow_run.py" --url URL --flows flows.json --out "$RUN/flows"
+python3 "$SKILL_DIR/scripts/flow_run.py" --url URL --flows flows.json --keyboard-only --out "$RUN/flows-keyboard"
+python3 "$SKILL_DIR/scripts/summarize.py" "$RUN"
 ```
+
+Flows replace hand-written Playwright scripts. A flows file is `{"flows": [{"name", "url"?, "view"?, "steps": [...]}]}`. Steps are actions (`goto`, `click`, `fill`, `type`, `press`, `tab_to`, `upload`, `set_offline`, `view`, `wait_for`, `eval`...) or assertions (`expect_visible`, `expect_hidden`, `expect_text`, `expect_attr`, `expect_url`, `expect_focus`, `expect_count`, `expect_no_console_error`, `screenshot`). A failing step stops the flow and saves a screenshot. `--keyboard-only` refuses pointer actions, which proves the flow works with the keyboard (ACC-02).
 
 Reading the results:
 - `result: issues` flags candidates. Each candidate is confirmed on the annotated screenshot (`annotated.png`) before it becomes a finding. The alignment and focus visibility heuristics have medium confidence.
@@ -112,8 +119,11 @@ python3 "$SKILL_DIR/scripts/visual_diff.py" --before "$RUN/before" --after "$RUN
 ## Step 9: Report and decide
 
 ```bash
+python3 "$SKILL_DIR/scripts/report_build.py" "$RUN"          # pre-fills controls, placeholders, before/after pairs, candidates
 python3 "$SKILL_DIR/scripts/verify_report.py" "$RUN" --apply --render
 ```
+
+`report_build.py` never overwrites what is already in `report.json`. It marks `passed` only the controls whose method is fully automated and clean in every view where it ran. Every candidate still needs a decision: a DEF-xxx finding, or a dismissal written in the report. When `--apply` succeeds outside git, the UI files snapshot is saved so that the next `impact_scan.py` compares against this audited state.
 
 - Code 0: consistent report. The decision is written and `report.md` is produced.
 - Code 1: inconsistencies listed (missing evidence, untraced reference, decision contrary to the rules). Fix the report, never the rules.

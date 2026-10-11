@@ -1,5 +1,5 @@
 ---
-description: Explore the whole website or web app, generate scenes for everything a user can do and review them all (run before every release)
+description: Perfect GUI scenes - explore the whole website or web app, generate scenes for everything a user can do and review them all (run before every release)
 argument-hint: "[url] [explore|review|baseline|accept S-xxxx]"
 ---
 

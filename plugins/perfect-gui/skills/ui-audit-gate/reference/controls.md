@@ -9,6 +9,8 @@ Each control has a stable ID, used in `report.json` (`controls[].id`) and in the
 | `horizontal-overflow` | inspect_page | GEO-01, ACC-08 (at 320 px or 400% zoom) | Complete for detection. The cause is confirmed visually. |
 | `text-overflow` | inspect_page | GEO-03, CTA-01, TXT-08, LOC-01 (with `--pseudo`), TXT-04 (with `--text-spacing`) | Complete for clipping and overflow of visible boxes |
 | `occlusion` | inspect_page `--scan-scroll` | STK-01, STK-06 (partial) | Sampled points (center and 4 corners). A transparent decorative element on top can cause a false positive. |
+| `spacing` | inspect_page | GEO-04, GEO-02 | Gap between the visible content of neighboring blocks of a row (default minimum 4 px, `--min-gap`). Joined segmented controls are ignored. Combine with `--viewports sweep:...` to find the width where blocks collide. |
+| flows | flow_run | PAR-01, FRM-03, ACC-02 (with `--keyboard-only`), PAR-04, PAR-05 (with `set_offline` or `--network`) | Complete for the scripted steps and assertions only |
 | `target-size` | inspect_page | CTA-03 | 24 px threshold with the spacing exception, plus a warning below the touch guideline for coarse pointers |
 | `alignment` | inspect_page | GEO-02, CTA-02, CTA-04 | Heuristic, medium confidence. Confirm the intent on the screenshot and in the design system. |
 | `contrast` | inspect_page | TXT-01 | Solid backgrounds only. Image, gradient or transparent backgrounds go to the `needs_assisted` list. |

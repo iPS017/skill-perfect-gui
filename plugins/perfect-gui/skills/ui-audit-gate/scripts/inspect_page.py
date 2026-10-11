@@ -54,7 +54,60 @@ async (scope) => {
 }
 """
 
-BOX_CHECKS = ["horizontal-overflow", "text-overflow", "occlusion", "target-size", "alignment", "contrast", "form-labels", "accessible-names", "form-errors"]
+BOX_CHECKS = ["horizontal-overflow", "text-overflow", "occlusion", "target-size", "alignment", "spacing", "contrast", "form-labels", "accessible-names", "form-errors"]
+
+
+def luminance(rgb):
+    channels = []
+    for value in rgb[:3]:
+        v = value / 255
+        channels.append(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+
+def contrast_ratio(a, b):
+    la, lb = luminance(a), luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def verify_contrast_on_pixels(check, screenshot):
+    try:
+        from PIL import Image
+    except ImportError:
+        return
+    if not check or check.get("result") != "issues" or not screenshot:
+        return
+    image = Image.open(screenshot).convert("RGB")
+    confirmed, resolved = [], []
+    for item in check.get("items", []):
+        box = item.get("box")
+        if not box or box["w"] < 2 or box["h"] < 2:
+            confirmed.append(item)
+            continue
+        region = image.crop((box["x"], box["y"], min(image.width, box["x"] + box["w"]), min(image.height, box["y"] + box["h"])))
+        text = tuple(int(item["color"][i:i + 2], 16) for i in (1, 3, 5))
+        counts = {}
+        for n, color in (region.getcolors(maxcolors=region.width * region.height) or []):
+            key = tuple(c // 8 * 8 for c in color)
+            counts[key] = counts.get(key, 0) + n
+        backgrounds = [c for c, _ in sorted(counts.items(), key=lambda kv: -kv[1]) if sum(abs(c[i] - text[i]) for i in range(3)) > 60]
+        if not backgrounds:
+            confirmed.append(item)
+            continue
+        measured = round(contrast_ratio(text, backgrounds[0]), 2)
+        item["pixel_background"] = "#%02x%02x%02x" % backgrounds[0]
+        item["pixel_ratio"] = measured
+        if measured + 0.05 >= item["required"]:
+            item["kind"] = "resolved-by-pixels"
+            resolved.append(item)
+        else:
+            confirmed.append(item)
+    check["items"] = confirmed
+    check["resolved_by_pixels"] = resolved
+    check["result"] = "issues" if confirmed else "clean"
+    if resolved:
+        check["note"] = ("Computed colors missed a layer (overlay, clip-path, gradient, image); these items were re-measured on the "
+                         "screenshot pixels and pass. Confirm visually if the background is not uniform.")
 
 
 def scan_occlusion(page, js_source, opts):
@@ -118,6 +171,8 @@ def main():
     parser.add_argument("--min-target", type=int, default=24)
     parser.add_argument("--touch-target", type=int, default=44, help="Indicative touch guideline for coarse pointers, 0 to disable")
     parser.add_argument("--align-tolerance", type=float, default=1.0)
+    parser.add_argument("--min-gap", type=float, default=4.0, help="Minimum gap in CSS px between neighboring blocks of a row (spacing check)")
+    parser.add_argument("--skip-link-threshold", type=int, default=6, help="Below this number of focusable elements before main, a missing skip link is only reported as info")
     parser.add_argument("--no-axe", action="store_true")
     parser.add_argument("--no-screenshot", action="store_true")
     args = parser.parse_args()
@@ -149,6 +204,8 @@ def main():
                 "minTarget": args.min_target,
                 "touchTarget": args.touch_target if cfg["pointer"] == "coarse" else 0,
                 "alignTolerance": args.align_tolerance,
+                "minGap": args.min_gap,
+                "skipLinkThreshold": args.skip_link_threshold,
             }
             result = page.evaluate(js_source, opts)
             if "error" in result:
@@ -182,6 +239,7 @@ def main():
             if not args.no_screenshot:
                 screenshot = out_dir / "page.png"
                 page.screenshot(path=str(screenshot), full_page=True, scale="css", animations="disabled")
+                verify_contrast_on_pixels(checks.get("contrast"), screenshot)
                 boxes = collect_boxes(checks)
                 annotated = annotate(screenshot, boxes, out_dir / "annotated.png") if boxes else None
                 if boxes:
@@ -203,11 +261,11 @@ def main():
                 "config_id": cid,
                 "report": str(out_dir / "inspect.json"),
                 "annotated": annotated,
-                "results": {name: {"result": c.get("result"), "items": len(c.get("items", c.get("violations", [])))} for name, c in checks.items()},
+                "checks": {name: {"result": c.get("result"), "items": len(c.get("items", c.get("violations", [])))} for name, c in checks.items()},
             })
             context.close()
 
-    summary["issues"] = sorted({name for c in summary["configs"] for name, r in c["results"].items() if r["result"] == "issues"})
+    summary["issues"] = sorted({name for c in summary["configs"] for name, r in c["checks"].items() if r["result"] == "issues"})
     summary["reminder"] = "Candidates to confirm visually. 'clean' = nothing detected by this script, not proof that there is no defect."
     emit(summary)
 

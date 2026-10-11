@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Launcher (extra test cases for ui-audit-gate)</title>
+<script>
+  const scenarios = new URLSearchParams(location.search).get('scn');
+  (scenarios ? scenarios.split(',') : []).forEach((s) => document.documentElement.classList.add('scn-' + s.trim()));
+</script>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #1a1a1a; background: #ffffff; }
+  .topbar { display: flex; align-items: center; gap: 16px; padding: 8px 16px; background: #ffffff; border-bottom: 1px solid #c8c8c8; }
+  .app-tabs { display: flex; gap: 8px; }
+  .app-tab { position: relative; isolation: isolate; min-height: 44px; padding: 10px 16px; border: 0; border-radius: 6px; background: transparent; color: #1a1a1a; font: inherit; cursor: pointer; }
+  .app-tab[aria-selected=true] { color: #ffffff; }
+  .app-tab[aria-selected=true]::before { content: ""; position: absolute; inset: 0; z-index: -1; background: #b93c0a; clip-path: inset(0 round 6px); }
+  .profile { display: flex; align-items: center; gap: 8px; margin-left: auto; padding: 6px 12px; border: 1px solid #6b6b6b; border-radius: 8px; background: #f2f2f2; }
+  .scn-gap .app-tabs { flex: 1; justify-content: flex-end; }
+  .scn-gap .profile { margin-left: 0; }
+  .scn-gap .topbar { gap: 0; }
+  main { padding: 16px; }
+  .panel[hidden] { display: none; }
+  .field { display: flex; flex-direction: column; gap: 4px; max-width: 420px; margin-bottom: 12px; }
+  .field input { min-height: 44px; padding: 8px; border: 1px solid #6b6b6b; border-radius: 6px; font: inherit; }
+  .hint { color: #4a4a4a; font-size: 0.9rem; margin: 0; }
+  .error-text { color: #b3261e; margin: 0; }
+  .pill { min-height: 44px; padding: 10px 22px; border: 1px solid #0b57d0; border-radius: 22px; background: #0b57d0; color: #ffffff; font: inherit; cursor: pointer; }
+  .pill-quiet { background: #ffffff; color: #0b57d0; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <nav class="app-tabs" role="tablist" aria-label="Sections">
+    <button class="app-tab" role="tab" id="tab-home" aria-selected="true" aria-controls="panel-home">Home</button>
+    <button class="app-tab" role="tab" id="tab-skin" aria-selected="false" aria-controls="panel-skin">Skin</button>
+    <button class="app-tab" role="tab" id="tab-updates" aria-selected="false" aria-controls="panel-updates">Updates</button>
+  </nav>
+  <section class="profile" aria-label="Profile">
+    <span id="profile-name">Guest</span>
+  </section>
+</header>
+<main id="main">
+  <section class="panel" id="panel-home" role="tabpanel" aria-labelledby="tab-home">
+    <h1>Launcher</h1>
+    <p id="welcome" hidden>Welcome back.</p>
+    <form id="login-form" novalidate>
+      <div class="field"><label for="username">Username</label><input id="username" name="username" autocomplete="username"></div>
+      <div class="field" id="password-field"><label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" aria-describedby="password-hint">
+        <p class="hint" id="password-hint">At least 8 characters.</p></div>
+      <p class="row"><button class="pill" type="submit" id="sign-in">Sign in</button></p>
+    </form>
+  </section>
+  <section class="panel" id="panel-skin" role="tabpanel" aria-labelledby="tab-skin" hidden>
+    <h1>Skin</h1>
+    <div class="field"><label for="skin-file">Skin file (PNG)</label><input id="skin-file" type="file" accept="image/png"></div>
+    <p class="hint" id="upload-status" role="status">No file selected.</p>
+  </section>
+  <section class="panel" id="panel-updates" role="tabpanel" aria-labelledby="tab-updates" hidden>
+    <h1>Updates</h1>
+    <div class="field"><label for="channel">Update channel</label><input id="channel" value="stable">
+      <p class="hint">Automatic updates are enabled. Required restarts happen at night.</p></div>
+    <p class="row"><button class="pill pill-quiet" type="button" id="check-updates">Check for updates</button></p>
+    <p class="hint" id="update-status" role="status"></p>
+  </section>
+</main>
+<script>
+  const show = (name) => {
+    document.querySelectorAll('[role=tab]').forEach((tab) => {
+      const selected = tab.id === 'tab-' + name;
+      tab.setAttribute('aria-selected', String(selected));
+      document.getElementById(tab.getAttribute('aria-controls')).hidden = !selected;
+    });
+  };
+  document.querySelectorAll('[role=tab]').forEach((tab) => tab.addEventListener('click', () => show(tab.id.replace('tab-', ''))));
+
+  const token = localStorage.getItem('launcher-token');
+  if (token) {
+    document.getElementById('welcome').hidden = false;
+    document.getElementById('profile-name').textContent = 'Tester';
+  }
+
+  document.getElementById('login-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const password = document.getElementById('password');
+    document.querySelectorAll('#password-field .error-text').forEach((n) => n.remove());
+    if (password.value !== 'correct-horse') {
+      const message = document.createElement('p');
+      message.className = 'error-text';
+      message.id = 'password-error';
+      message.setAttribute('role', 'alert');
+      message.textContent = 'Wrong password. Check it and try again.';
+      document.getElementById('password-field').append(message);
+      password.setAttribute('aria-invalid', 'true');
+      password.setAttribute('aria-describedby', 'password-hint password-error');
+      password.focus();
+      return;
+    }
+    localStorage.setItem('launcher-token', 'test-token');
+    password.removeAttribute('aria-invalid');
+    document.getElementById('welcome').hidden = false;
+    document.getElementById('profile-name').textContent = 'Tester';
+  });
+
+  document.getElementById('skin-file').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    document.getElementById('upload-status').textContent = file ? `Selected: ${file.name}` : 'No file selected.';
+  });
+
+  document.getElementById('check-updates').addEventListener('click', async () => {
+    const status = document.getElementById('update-status');
+    status.textContent = 'Checking...';
+    try {
+      const response = await fetch('version.json?ts=' + Date.now());
+      status.textContent = response.ok ? 'You are up to date.' : 'Update server error.';
+    } catch (error) {
+      status.textContent = 'You are offline. Updates will be checked later.';
+    }
+  });
+</script>
+</body>
+</html>

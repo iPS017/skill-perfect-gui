@@ -75,15 +75,69 @@ def is_ui_path(path, include=(), exclude=()):
     return any(f"/{hint}" in lowered for hint in UI_PATH_HINTS)
 
 
-def ui_fingerprint(root, include=(), exclude=()):
+IGNORED_DIRS = {".git", "node_modules", "dist", "build", "target", ".next", ".nuxt", ".svelte-kit", ".output", "out",
+                "coverage", ".venv", "venv", "__pycache__", ".cache", ".turbo", ".parcel-cache", "vendor", ".ui-audit", "ui-scenes"}
+
+
+def project_files(root):
+    root = Path(root)
     try:
         listed = subprocess.run(["git", "ls-files", "-co", "--exclude-standard"], cwd=root, capture_output=True, text=True, timeout=20)
+        if listed.returncode == 0:
+            return [p for p in listed.stdout.splitlines() if p], "git"
     except (OSError, subprocess.SubprocessError):
-        return None
-    if listed.returncode != 0:
-        return None
+        pass
+    files = []
+    for directory, subdirs, names in os.walk(root):
+        subdirs[:] = [d for d in subdirs if d not in IGNORED_DIRS and not d.startswith(".")]
+        for name in names:
+            files.append(Path(directory, name).relative_to(root).as_posix())
+            if len(files) > 50000:
+                return files, "walk-truncated"
+    return files, "walk"
+
+
+def ui_files(root, include=(), exclude=()):
+    files, source = project_files(root)
+    return sorted(p for p in files if is_ui_path(p, include, exclude)), source
+
+
+def ui_snapshot(root, include=(), exclude=()):
+    paths, source = ui_files(root, include, exclude)
+    entries = {}
+    for path in paths:
+        target = Path(root) / path
+        if target.is_file():
+            entries[path] = {"mtime": target.stat().st_mtime, "sha1": hashlib.sha1(target.read_bytes()).hexdigest()}
+    return {"created_at": now_iso(), "source": source, "files": entries}
+
+
+def project_root(start="."):
+    start = Path(start).resolve()
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=start, capture_output=True, text=True, timeout=5)
+        if top.returncode == 0:
+            return Path(top.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    for candidate in [start, *start.parents]:
+        if (candidate / ".ui-audit").is_dir():
+            return candidate
+    return start
+
+
+def project_config(start="."):
+    path = project_root(start) / ".ui-audit" / "config.json"
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def ui_fingerprint(root, include=(), exclude=()):
+    paths, _ = ui_files(root, include, exclude)
     digest = hashlib.sha1()
-    for path in sorted(p for p in listed.stdout.splitlines() if is_ui_path(p, include, exclude)):
+    for path in paths:
         target = Path(root) / path
         if target.is_file():
             digest.update(path.encode("utf-8"))
@@ -173,10 +227,70 @@ def git_revision(cwd=None):
         return None
 
 
+def app_window_viewports(root="."):
+    root = project_root(root)
+    windows, source = [], None
+    for candidate in ("src-tauri/tauri.conf.json", "tauri.conf.json", "src-tauri/tauri.conf.json5"):
+        path = root / candidate
+        if path.exists() and path.suffix == ".json":
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            windows = (data.get("app") or {}).get("windows") or (data.get("tauri") or {}).get("windows") or []
+            source = candidate
+            break
+    if not windows:
+        sizes = {}
+        for main in [*root.glob("electron/*.js"), *root.glob("electron/*.ts"), *root.glob("src/main/*.[jt]s"), root / "main.js", root / "electron.js"]:
+            if main.is_file():
+                text = main.read_text(encoding="utf-8", errors="ignore")
+                for key in ("minWidth", "minHeight", "width", "height"):
+                    found = re.search(rf"\b{key}\s*:\s*(\d+)", text)
+                    if found and key not in sizes:
+                        sizes[key] = int(found[1])
+                if sizes:
+                    source = main.relative_to(root).as_posix()
+                    break
+        if sizes:
+            windows = [sizes]
+    if not windows:
+        return [], None
+    window = windows[0]
+    min_w, min_h = window.get("minWidth"), window.get("minHeight")
+    width, height = window.get("width") or 1280, window.get("height") or 800
+    viewports = []
+    if min_w and min_h:
+        viewports.append({"id": "app-min", "width": int(min_w), "height": int(min_h)})
+    viewports.append({"id": "app-default", "width": int(width), "height": int(height)})
+    for w, h in ((1366, 768), (1920, 1080)):
+        if (not min_w or w >= min_w) and (w, h) != (width, height):
+            viewports.append({"id": f"app-{w}", "width": w, "height": h})
+    for viewport in viewports:
+        viewport.update({"dpr": 1, "pointer": "fine", "priority": "app"})
+    return viewports, source
+
+
 def resolve_viewports(spec):
     catalog = load_config("viewports.json")["viewports"]
     selected = []
+    if spec in (None, ""):
+        spec = project_config().get("viewports") or "P0"
     for token in [t.strip() for t in spec.split(",") if t.strip()]:
+        if token == "app":
+            found, _ = app_window_viewports()
+            if not found:
+                raise SystemExit("--viewports app: no Tauri or Electron window size found (src-tauri/tauri.conf.json, electron main file)")
+            selected.extend(found)
+            continue
+        sweep = re.fullmatch(r"sweep:(\d+)-(\d+):(\d+)(?:x(\d+))?", token)
+        if sweep:
+            low, high, step = int(sweep[1]), int(sweep[2]), max(1, int(sweep[3]))
+            height = int(sweep[4] or 900)
+            for width in [*range(low, high + 1, step), high]:
+                selected.append({"id": f"sweep-{width}", "width": width, "height": height, "dpr": 1,
+                                 "pointer": "coarse" if width < 768 else "fine", "priority": "sweep"})
+            continue
         size = re.fullmatch(r"(\d+)x(\d+)", token)
         if size:
             width, height = int(size[1]), int(size[2])
@@ -197,7 +311,11 @@ def resolve_viewports(spec):
 
 def add_browser_args(parser, default_viewports="P0"):
     parser.add_argument("--url", required=True)
-    parser.add_argument("--viewports", default=default_viewports, help="Comma-separated ids, P0/P1/P2 or WxH")
+    parser.add_argument("--viewports", default=None, help=f"Comma-separated ids, P0/P1/P2, WxH, 'app' (Tauri/Electron window sizes) or sweep:MIN-MAX:STEP[xHEIGHT]. Default: .ui-audit/config.json 'viewports', else {default_viewports}")
+    parser.set_defaults(default_viewports=default_viewports)
+    parser.add_argument("--view", help="Named view from .ui-audit/views.json (actions that open a screen without its own URL)")
+    parser.add_argument("--network", default="normal", choices=["normal", "slow", "offline"], help="slow: delay every request after the page load; offline: cut the network after the page load")
+    parser.add_argument("--network-delay-ms", type=int, default=2000)
     parser.add_argument("--theme", default="light", choices=["light", "dark", "no-preference"])
     parser.add_argument("--locale", default="en-US")
     parser.add_argument("--timezone", default="UTC")
@@ -245,6 +363,29 @@ def config_id(cfg):
     return re.sub(r"[^A-Za-z0-9_.-]", "_", "-".join(parts))
 
 
+SYSTEM_BROWSERS = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge", "microsoft-edge-stable", "brave-browser"]
+SYSTEM_BROWSER_PATHS = [
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+]
+BROWSER_CACHE = CACHE_DIR / "browser.json"
+
+
+def system_browser_candidates():
+    import shutil
+
+    found = [shutil.which(name) for name in SYSTEM_BROWSERS]
+    found += [path for path in SYSTEM_BROWSER_PATHS if Path(path).exists()]
+    unique = []
+    for path in found:
+        if path and path not in unique:
+            unique.append(path)
+    return unique
+
+
 def launch_browser(playwright, engine="chromium", browser_path=None, headless=True):
     browser_type = getattr(playwright, engine)
     if browser_path:
@@ -254,14 +395,30 @@ def launch_browser(playwright, engine="chromium", browser_path=None, headless=Tr
         env_path = os.environ.get("UI_AUDIT_BROWSER")
         if env_path:
             attempts.append({"executable_path": env_path})
+        cached = (read_json(BROWSER_CACHE, {}) or {}).get(engine)
+        if cached:
+            attempts.append(cached)
         attempts.append({})
         if engine == "chromium":
             attempts += [{"channel": "chrome"}, {"channel": "msedge"}]
+            attempts += [{"executable_path": path} for path in system_browser_candidates()]
     errors = []
+    tried = []
     for options in attempts:
+        if options in tried:
+            continue
+        tried.append(options)
         try:
             browser = browser_type.launch(headless=headless, **options)
             label = options.get("executable_path") or options.get("channel") or "playwright-bundled"
+            if not browser_path:
+                try:
+                    cache = read_json(BROWSER_CACHE, {}) or {}
+                    if cache.get(engine) != options:
+                        cache[engine] = options
+                        write_json(BROWSER_CACHE, cache)
+                except OSError:
+                    pass
             return browser, {"engine": engine, "launch": label, "version": browser.version}
         except Exception as exc:
             first_line = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
@@ -269,8 +426,39 @@ def launch_browser(playwright, engine="chromium", browser_path=None, headless=Tr
     raise BrowserUnavailable(errors)
 
 
+def apply_project_defaults(args):
+    config = project_config()
+    if hasattr(args, "browser_path") and not args.browser_path and config.get("browser_path"):
+        args.browser_path = config["browser_path"]
+    if hasattr(args, "storage_state") and not args.storage_state and not getattr(args, "fresh_session", False) and config.get("storage_state"):
+        state = project_root() / config["storage_state"]
+        if state.exists():
+            args.storage_state = str(state)
+    if hasattr(args, "viewports") and not args.viewports:
+        args.viewports = config.get("viewports") or getattr(args, "default_viewports", "P0")
+    return config
+
+
+def load_views():
+    root = project_root()
+    views_path = root / (project_config().get("views_file") or ".ui-audit/views.json")
+    return (read_json(views_path, {}) or {}).get("views", {})
+
+
+def view_actions(name):
+    if not name:
+        return []
+    root = project_root()
+    views_path = root / (project_config().get("views_file") or ".ui-audit/views.json")
+    views = (read_json(views_path, {}) or {}).get("views", {})
+    if name not in views:
+        raise SystemExit(f"Unknown view '{name}': define it in {views_path} as {{\"views\": {{\"{name}\": [actions]}}}}")
+    return views[name]
+
+
 @contextmanager
 def browser_session(args):
+    apply_project_defaults(args)
     ensure_playwright()
     from playwright.sync_api import sync_playwright
 
@@ -410,6 +598,21 @@ def run_actions(page, actions, base_url, log):
             page.evaluate(value)
         elif kind == "set_viewport":
             page.set_viewport_size({"width": int(value[0]), "height": int(value[1])})
+        elif kind == "upload":
+            page.set_input_files(value[0], value[1])
+        elif kind == "set_offline":
+            page.context.set_offline(bool(value))
+        elif kind == "view":
+            run_actions(page, view_actions(value), base_url, log)
+            continue
+        elif kind == "tab_to":
+            target = page.locator(value).first
+            for _ in range(80):
+                page.keyboard.press("Tab")
+                if target.evaluate("(el) => el === document.activeElement || el.contains(document.activeElement)"):
+                    break
+            else:
+                raise RuntimeError(f"tab_to: {value} never received focus after 80 Tab presses")
         else:
             raise SystemExit(f"Unknown action: {kind}")
         log.append(step)
@@ -427,10 +630,31 @@ def install_mutation_guard(target, allow, journal):
     target.route("**/*", handle)
 
 
+def apply_network(context, page, args, steps):
+    network = getattr(args, "network", "normal")
+    if network == "offline":
+        context.set_offline(True)
+        steps.append({"set_offline": True})
+    elif network == "slow":
+        delay = getattr(args, "network_delay_ms", 2000)
+        try:
+            session = context.new_cdp_session(page)
+            session.send("Network.enable")
+            session.send("Network.emulateNetworkConditions", {
+                "offline": False, "latency": delay, "downloadThroughput": 50 * 1024, "uploadThroughput": 20 * 1024,
+            })
+            steps.append({"note": f"slow network: {delay} ms latency, 50 KB/s down, 20 KB/s up (Chromium emulation)"})
+        except Exception as exc:
+            steps.append({"note": f"slow network not emulated with this engine ({type(exc).__name__})"})
+
+
 def prepare_page(browser, cfg, args):
     context, page, logs, clock = open_page(browser, cfg, args)
     steps = [{"goto": args.url}]
     page.goto(args.url, wait_until="load")
+    if getattr(args, "view", None):
+        run_actions(page, [{"view": args.view}], args.url, steps)
+    apply_network(context, page, args, steps)
     run_actions(page, load_actions(args.actions), args.url, steps)
     stabilize(page, args)
     return context, page, logs, clock, steps

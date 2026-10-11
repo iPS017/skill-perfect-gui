@@ -67,9 +67,13 @@ class Harness:
     def url(self, scenario=None):
         return f"{self.base}?scn={scenario}" if scenario else self.base
 
-    def script(self, name, *args, env=None, stdin=None):
+    def extras(self, scenario=None):
+        url = self.base.replace("index.html", "extras.html")
+        return f"{url}?scn={scenario}" if scenario else url
+
+    def script(self, name, *args, env=None, stdin=None, cwd=None):
         command = [sys.executable, str(SCRIPTS / name), *map(str, args)]
-        result = subprocess.run(command, capture_output=True, text=True, timeout=300, env={**os.environ, **(env or {})}, input=stdin)
+        result = subprocess.run(command, capture_output=True, text=True, timeout=300, env={**os.environ, **(env or {})}, input=stdin, cwd=cwd)
         try:
             data = json.loads(result.stdout)
         except json.JSONDecodeError:
@@ -504,6 +508,161 @@ def scn_ui_paths(h):
     return "path hints match whole segments only (perfect-gui/ is not ui/)"
 
 
+def scn_field_noise(h):
+    show_updates = json.dumps([{"click": "#tab-updates"}])
+    healthy = h.script("inspect_page.py", "--url", h.extras(), "--viewports", "laptop", "--out", h.work / "extras-healthy", "--no-axe", "--actions", show_updates)[1]
+    report = json.loads(Path(healthy["configs"][0]["report"]).read_text(encoding="utf-8"))
+    checks = report["checks"]
+    expect(checks["spacing"]["result"] == "clean", f"spacing false positive: {checks['spacing']['items'][:2]}")
+    expect(checks["contrast"]["result"] == "clean" and checks["contrast"].get("resolved_by_pixels"), f"contrast over a clip-path layer must be resolved on pixels: {checks['contrast']}")
+    expect(checks["form-errors"]["result"] == "clean" and checks["form-errors"].get("ignored_help_texts"), f"help text with 'Required' must not be an error: {checks['form-errors']}")
+    expect(checks["landmarks"]["result"] == "clean" and checks["landmarks"]["info"], f"missing skip link with few controls must be info: {checks['landmarks']}")
+    broken = h.script("inspect_page.py", "--url", h.extras("gap"), "--viewports", "laptop", "--out", h.work / "extras-gap", "--no-axe", "--only", "spacing")[1]
+    gap = json.loads(Path(broken["configs"][0]["report"]).read_text(encoding="utf-8"))["checks"]["spacing"]
+    expect(gap["result"] == "issues" and any("profile" in i["neighbor"] and i["gap_px"] < 1 for i in gap["items"]), f"tabs touching the profile not detected: {gap}")
+    keyboard = h.script("keyboard_walk.py", "--url", h.extras(), "--viewports", "laptop", "--out", h.work / "extras-kb")[1]
+    walk = json.loads(Path(keyboard["configs"][0]["report"]).read_text(encoding="utf-8"))
+    obscured = [i for i in walk["issues"] if "obscured" in i["kind"]]
+    expect(not obscured, f"rounded controls reported as obscured: {obscured}")
+    return f"0 px gap detected only when injected; contrast resolved on pixels ({checks['contrast']['resolved_by_pixels'][0]['pixel_ratio']}:1); help text and skip link not flagged"
+
+
+def scn_flows(h):
+    flows = {"flows": [
+        {"name": "wrong password", "steps": [
+            {"fill": ["#username", "tester"]}, {"fill": ["role=textbox[name=\"Password\"]", "nope"]}, {"press": "Enter"},
+            {"expect_visible": "role=alert"}, {"expect_attr": ["#password", "aria-invalid", "true"]}, {"expect_focus": "#password"},
+            {"expect_no_console_error": True}, {"screenshot": "error-shown"}]},
+        {"name": "skin upload", "steps": [
+            {"click": "role=tab[name=\"Skin\"]"}, {"upload": ["#skin-file", str(TESTS_DIR / "fixture-app" / "avatar.png")]},
+            {"expect_text": ["#upload-status", "avatar.png"]}]},
+        {"name": "offline update check", "steps": [
+            {"click": "#tab-updates"}, {"set_offline": True}, {"click": "#check-updates"},
+            {"expect_text": ["#update-status", "offline"]}]},
+        {"name": "deliberately failing", "steps": [{"expect_visible": "#does-not-exist"}]},
+    ]}
+    flows_file = h.work / "flows.json"
+    flows_file.write_text(json.dumps(flows), encoding="utf-8")
+    code, data = h.script("flow_run.py", "--url", h.extras(), "--flows", flows_file, "--out", h.work / "flows-out", "--viewports", "laptop")
+    expect(data.get("passed") == 3 and data.get("failed") == 1, f"flows: {data}")
+    expect(data["failures"][0]["flow"] == "deliberately failing" and data["failures"][0]["screenshot"], "failure must carry a screenshot")
+    keyboard_flow = {"flows": [{"name": "keyboard sign-in error", "steps": [
+        {"tab_to": "#password"}, {"type": ["#password", "nope"]}, {"press": "Enter"}, {"expect_visible": "role=alert"}]}]}
+    flows_file.write_text(json.dumps(keyboard_flow), encoding="utf-8")
+    code, keyboard = h.script("flow_run.py", "--url", h.extras(), "--flows", flows_file, "--out", h.work / "flows-kb", "--viewports", "laptop", "--keyboard-only")
+    expect(keyboard.get("passed") == 1, f"keyboard-only flow: {keyboard}")
+    pointer_flow = {"flows": [{"name": "uses the mouse", "steps": [{"click": "#sign-in"}]}]}
+    flows_file.write_text(json.dumps(pointer_flow), encoding="utf-8")
+    code, refused = h.script("flow_run.py", "--url", h.extras(), "--flows", flows_file, "--out", h.work / "flows-ptr", "--viewports", "laptop", "--keyboard-only")
+    expect(refused.get("failed") == 1 and "keyboard-only" in (refused["failures"][0]["error"] or ""), f"keyboard-only must refuse clicks: {refused}")
+    return "assertions, upload, offline, failure screenshot, keyboard-only mode"
+
+
+def scn_project_setup(h):
+    project = h.work / "launcher"
+    (project / ".ui-audit").mkdir(parents=True)
+    (project / "src-tauri").mkdir()
+    (project / "src-tauri" / "tauri.conf.json").write_text(json.dumps({"app": {"windows": [{"width": 1100, "height": 700, "minWidth": 800, "minHeight": 520}]}}))
+    (project / ".ui-audit" / "views.json").write_text(json.dumps({
+        "login": [{"fill": ["#username", "tester"]}, {"fill": ["#password", "${env:UIAG_TEST_PASSWORD}"]}, {"click": "#sign-in"}, {"wait_for": "#welcome"}],
+        "views": {"skin": [{"click": "role=tab[name=\"Skin\"]"}], "updates": [{"click": "#tab-updates"}]},
+    }))
+    (project / ".ui-audit" / "config.json").write_text(json.dumps({"viewports": "app"}))
+    code, missing = h.script("login.py", "--url", h.extras(), cwd=project)
+    expect(code == 2 and missing.get("missing") == ["UIAG_TEST_PASSWORD"], f"missing secret must be reported: {missing}")
+    code, login = h.script("login.py", "--url", h.extras(), "--remember", cwd=project, env={"UIAG_TEST_PASSWORD": "correct-horse"})
+    expect(code == 0 and login["status"] == "ok", f"login: {login}")
+    config = json.loads((project / ".ui-audit" / "config.json").read_text())
+    expect(config.get("storage_state") and "correct-horse" not in (project / ".ui-audit" / "views.json").read_text(), "storage_state remembered, secret never written")
+    flows = project / "flows.json"
+    flows.write_text(json.dumps({"flows": [{"name": "logged-in skin view", "view": "skin", "steps": [
+        {"expect_visible": "#panel-skin"}, {"expect_text": ["#profile-name", "Tester"]}]}]}))
+    code, result = h.script("flow_run.py", "--url", h.extras(), "--flows", flows, "--out", project / "out", cwd=project)
+    expect(result.get("passed") == 4 and result.get("failed") == 0, f"session state + named view + app viewports: {result}")
+    sys.path.insert(0, str(SCRIPTS))
+    import _common
+    previous = os.getcwd()
+    os.chdir(project)
+    try:
+        ids = [v["id"] for v in _common.resolve_viewports("app")]
+        sweep = [v["width"] for v in _common.resolve_viewports("sweep:800-1000:100")]
+    finally:
+        os.chdir(previous)
+    expect(ids == ["app-min", "app-default", "app-1366", "app-1920"], f"app viewports: {ids}")
+    expect(sweep == [800, 900, 1000], f"sweep: {sweep}")
+    cache = Path(os.environ["UI_AUDIT_CACHE"]) / "browser.json"
+    expect(cache.exists() and json.loads(cache.read_text()).get("chromium") is not None, "the working browser must be remembered")
+    suite = project / "ui-scenes"
+    code, explored = h.script("explore_site.py", "--url", h.extras(), "--out", suite / "site-map.json", "--max-pages", "2", cwd=project)
+    expect(code == 0 and explored.get("views") == 2, f"named views explored: {explored}")
+    code, generated = h.script("generate_scenarios.py", "--site-map", suite / "site-map.json", "--out", suite / "scenes.json", "--export-playwright", suite / "spec.ts", cwd=project)
+    scenes = json.loads((suite / "scenes.json").read_text())["scenes"]
+    update_scene = [sc for sc in scenes if "Check for updates" in sc["title"] and "(view updates)" in sc["title"]]
+    expect(update_scene and update_scene[0]["actions"][1] == {"view": "updates"}, f"control inside a named view: {[sc['title'] for sc in scenes][:12]}")
+    expect("#tab-updates" in (suite / "spec.ts").read_text(), "views must be inlined in the Playwright export")
+    code, played = h.script("play_scenarios.py", "--suite", suite, "--url", h.extras(), "--mode", "baseline", "--viewports", "laptop",
+                            "--scenes", update_scene[0]["id"], "--workers", "1", cwd=project)
+    expect(played.get("errors") == 0 and played.get("executions") == 1, f"scene with a named view replayed: {played}")
+    return f"login with env secret, remembered session, named views explored ({len(scenes)} scenes), Tauri window sizes, sweep, browser memory"
+
+
+def scn_no_git(h):
+    project = h.work / "no-git"
+    (project / "src" / "styles").mkdir(parents=True)
+    (project / "src" / "styles" / "main.css").write_text(":root { --gap: 8px; }\n")
+    (project / "src" / "App.vue").write_text("<template><div :style=\"{gap: 'var(--gap)'}\" /></template>\n")
+    code, run = h.script("init_run.py", "--slug", "nogit", "--root", project)
+    expect(code == 0 and "walk" in run["ui_files_snapshot"], f"snapshot without git: {run}")
+    code, recent = h.script("impact_scan.py", "--root", project, "--since-hours", "1")
+    expect(code == 0 and "src/styles/main.css" in recent["changed_files"] and recent["detection_confidence"] == "probable", f"mtime fallback: {recent}")
+    sys.path.insert(0, str(SCRIPTS))
+    from _common import ui_snapshot, write_json
+    write_json(project / ".ui-audit" / "snapshot.json", ui_snapshot(project))
+    (project / "src" / "styles" / "main.css").write_text(":root { --gap: 0px; }\n")
+    code, compared = h.script("impact_scan.py", "--root", project)
+    expect(compared["changed_files"] == ["src/styles/main.css"] and compared["detection_confidence"] == "certain", f"snapshot comparison: {compared}")
+    expect("src/App.vue" in compared["impacted_files"], f"token propagation without git: {compared['impacted_files']}")
+    transcript = h.work / "transcript.jsonl"
+    transcript.write_text(json.dumps({"message": {"content": [{"type": "tool_use", "name": "Edit", "input": {"file_path": str(project / "src" / "styles" / "main.css")}}]}}) + "\n")
+    payload = json.dumps({"cwd": str(project), "transcript_path": str(transcript), "stop_hook_active": False})
+    hook = subprocess.run([sys.executable, str(HOOK)], input=payload, capture_output=True, text=True, timeout=60)
+    expect(hook.stdout.strip() and json.loads(hook.stdout).get("decision") == "block", f"Stop hook outside git must block on session edits: {hook.stdout} {hook.stderr[-300:]}")
+    transcript.write_text("")
+    quiet = subprocess.run([sys.executable, str(HOOK)], input=payload, capture_output=True, text=True, timeout=60)
+    expect(not quiet.stdout.strip(), "no session edit: no block")
+    return "snapshot, mtime and snapshot comparison, propagation, Stop hook from the session transcript"
+
+
+def scn_report_tools(h):
+    project = h.work / "report-tools"
+    project.mkdir()
+    code, run = h.script("init_run.py", "--slug", "tools", "--root", project, "--no-gitignore")
+    run_dir = Path(run["run"])
+    h.script("inspect_page.py", "--url", h.base, "--viewports", "laptop,mobile", "--out", run_dir / "inspect", "--no-axe", "--scan-scroll")
+    h.script("keyboard_walk.py", "--url", h.base, "--viewports", "laptop", "--out", run_dir / "keyboard")
+    for folder in ("before", "after-fix-1"):
+        h.script("capture.py", "--url", h.base, "--viewports", "laptop", "--out", run_dir / folder, "--name", "home")
+    code, diff = h.script("visual_diff.py", "--before", run_dir / "before", "--after", run_dir / "after-fix-1", "--out", run_dir / "diff")
+    expect(all(item.get("name") for item in diff["items"] if item["status"] not in ("missing-before", "missing-after")), f"diff pairs must be named: {diff['items'][:2]}")
+    code, summary = h.script("summarize.py", run_dir)
+    expect(code == 0 and (run_dir / "summary.md").exists(), f"summarize: {summary}")
+    code, built = h.script("report_build.py", run_dir)
+    expect(code == 0 and {"GEO-01", "ACC-03", "STK-01"} <= set(built["controls_passed_added"]), f"report_build: {built}")
+    expect(built["before_after_pairs_added"] >= 1 and "PAR-01" in built["fundamental_placeholders"], f"pairs and placeholders: {built}")
+    report = json.loads((run_dir / "report.json").read_text())
+    report["controls"][0]["evidence"] = ["inspect/laptop-w1366h768-z100-light-en-US-m-chromium/inspect.jsn"]
+    (run_dir / "report.json").write_text(json.dumps(report))
+    code, verified = h.script("verify_report.py", run_dir)
+    expect(any("closest existing file" in e for e in verified["errors"]), f"closest evidence suggestion missing: {verified['errors'][:3]}")
+    url = "https://www.w3.org/WAI/WCAG22/Understanding/focus-visible.html"
+    h.script("research_log.py", run_dir, "query", "--text", "WCAG focus visible understanding", "--urls", url)
+    code, refused = h.script("research_log.py", run_dir, "ref", "--json", json.dumps({
+        "title": "Focus visible", "url": url, "author_organization": "W3C WAI", "access_status": "accessed",
+        "source_rank": 1, "question": "q", "transfer_limits": "l"}))
+    expect(code == 1 and refused["status"] == "refused", "a URL seen only in search results must not count as accessed")
+    return f"named diff pairs, summary ({summary['candidates']} candidates), report pre-filled ({len(built['controls_passed_added'])} controls), closest evidence, visit required"
+
+
 SCENARIOS = [
     ("BASE", "Healthy version without false positives", scn_base),
     ("SCN-01", "Offset button", scn_01),
@@ -527,6 +686,11 @@ SCENARIOS = [
     ("EXPLORE", "Exploration, generation and review of scenes", scn_explore),
     ("PUBLISH", "Pre-publish gate", scn_publish),
     ("UIPATHS", "UI file detection", scn_ui_paths),
+    ("NOISE", "Field-test false positives and touching blocks", scn_field_noise),
+    ("FLOWS", "Flows with assertions", scn_flows),
+    ("PROJECT", "Login, named views, desktop window sizes, browser memory", scn_project_setup),
+    ("NOGIT", "Projects without git", scn_no_git),
+    ("REPORT", "Summary, report pre-fill, evidence and research checks", scn_report_tools),
 ]
 
 
@@ -537,6 +701,8 @@ def main():
     args = parser.parse_args()
     wanted = set(args.only.split(",")) if args.only else None
     work = Path(tempfile.mkdtemp(prefix="ui-audit-tests-"))
+    os.environ.setdefault("UI_AUDIT_VENV", str(Path(os.environ.get("UI_AUDIT_CACHE", Path.home() / ".cache" / "ui-audit-gate")) / "venv"))
+    os.environ["UI_AUDIT_CACHE"] = str(work / "cache")
     harness = Harness(work)
     failures = 0
     for sid, title, func in SCENARIOS:

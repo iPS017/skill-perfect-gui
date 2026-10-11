@@ -14,7 +14,11 @@ import re
 import subprocess
 from pathlib import Path, PurePosixPath
 
-from _common import emit, load_config, now_iso, write_json
+import time
+
+from _common import emit, load_config, now_iso, project_files, read_json, ui_files, ui_snapshot, write_json
+
+IN_GIT = {}
 
 UI_EXTENSIONS = {".css", ".scss", ".sass", ".less", ".styl", ".pcss", ".html", ".htm", ".vue", ".svelte", ".astro",
                  ".jsx", ".tsx", ".mdx", ".twig", ".erb", ".hbs", ".njk", ".liquid", ".razor", ".cshtml",
@@ -53,8 +57,8 @@ def changed_files(base, cwd):
 
 
 def diff_text(path, base, cwd):
-    text = git("diff", "HEAD", "--", path, cwd=cwd)
-    if base:
+    text = git("diff", "HEAD", "--", path, cwd=cwd) if in_git(cwd) else ""
+    if base and in_git(cwd):
         text += git("diff", f"{base}...HEAD", "--", path, cwd=cwd)
     if not text and Path(cwd, path).exists():
         try:
@@ -76,10 +80,44 @@ def classify(path):
     return (kinds or (["local-component"] if p.suffix in UI_EXTENSIONS else [])), is_ui
 
 
+def in_git(cwd):
+    key = str(cwd)
+    if key not in IN_GIT:
+        IN_GIT[key] = git("rev-parse", "--is-inside-work-tree", cwd=cwd).strip() == "true"
+    return IN_GIT[key]
+
+
 def grep_files(pattern, cwd, fixed=True, exclude=None):
-    args = ["grep", "--untracked", "-l", "-I", "-F" if fixed else "-E", "-e", pattern, "--", *SOURCE_GLOBS]
-    output = git(*args, cwd=cwd)
-    return sorted({f for f in output.split() if f != exclude and not f.startswith(".ui-audit/")})
+    if in_git(cwd):
+        args = ["grep", "--untracked", "-l", "-I", "-F" if fixed else "-E", "-e", pattern, "--", *SOURCE_GLOBS]
+        output = git(*args, cwd=cwd)
+        return sorted({f for f in output.split() if f != exclude and not f.startswith(".ui-audit/")})
+    suffixes = {glob[1:] for glob in SOURCE_GLOBS}
+    regex = re.compile(re.escape(pattern) if fixed else pattern)
+    found = set()
+    for path in project_files(cwd)[0]:
+        if path == exclude or PurePosixPath(path).suffix not in suffixes:
+            continue
+        try:
+            if regex.search(Path(cwd, path).read_text(encoding="utf-8", errors="ignore")):
+                found.add(path)
+        except OSError:
+            continue
+    return sorted(found)
+
+
+def changed_without_git(cwd, since_hours):
+    snapshot_path = cwd / ".ui-audit" / "snapshot.json"
+    snapshot = read_json(snapshot_path, None)
+    current = ui_snapshot(cwd)
+    if snapshot and since_hours is None:
+        before = snapshot.get("files", {})
+        changed = sorted(p for p, meta in current["files"].items() if before.get(p, {}).get("sha1") != meta["sha1"])
+        return changed, f"snapshot comparison ({snapshot.get('created_at')})", "certain"
+    hours = since_hours if since_hours is not None else 24
+    limit = time.time() - hours * 3600
+    changed = sorted(p for p, meta in current["files"].items() if meta["mtime"] >= limit)
+    return changed, f"files modified in the last {hours} h (no git, no snapshot)", "probable"
 
 
 def propagate(path, kinds, base, cwd):
@@ -148,11 +186,12 @@ def main():
     parser.add_argument("--base", help="Git reference to compare against (branch, commit)")
     parser.add_argument("--root", default=".")
     parser.add_argument("--files", nargs="*", help="Explicit list of files (without git)")
+    parser.add_argument("--since-hours", type=float, help="Without git: files modified in the last N hours (default: compare with .ui-audit/snapshot.json, else 24 h)")
     parser.add_argument("--out")
     args = parser.parse_args()
 
     cwd = Path(args.root).resolve()
-    inside = git("rev-parse", "--is-inside-work-tree", cwd=cwd).strip() == "true"
+    inside = in_git(cwd)
     if args.files:
         files = args.files
         source = "provided list"
@@ -160,15 +199,16 @@ def main():
         files = changed_files(args.base, cwd)
         source = f"git (base {args.base})" if args.base else "git (uncommitted)"
     else:
-        emit({"tool": "impact_scan", "status": "capability-missing", "capability": "git",
-              "hint": "No git repository: pass --files or infer the scope from the session (confidence: unknown)."}, 3)
+        files, source, detection_confidence = changed_without_git(cwd, args.since_hours)
 
     entries = []
     for path in files:
         kinds, is_ui = classify(path)
         if not is_ui and "dependency" not in kinds:
             continue
-        usages, notes = propagate(path, kinds, args.base, cwd) if inside else ([], ["Propagation impossible without git"])
+        usages, notes = propagate(path, kinds, args.base, cwd)
+        if not inside:
+            notes.append("No git: the whole file is treated as changed, so token and key propagation may over-report.")
         entries.append({"file": path, "types": kinds, "usages": usages, "notes": notes})
 
     level, reasons = suggest_level(entries)
@@ -178,6 +218,7 @@ def main():
         "tool": "impact_scan",
         "created_at": now_iso(),
         "source": source,
+        "detection_confidence": "certain" if inside or args.files else detection_confidence,
         "changed_files": files,
         "ui_files": entries,
         "impacted_files": impacted,

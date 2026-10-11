@@ -567,6 +567,16 @@
     const linked = [...describedIds].map((id) => document.getElementById(id)).filter(Boolean);
     const items = [];
     const announcedSummaries = [];
+    const ignoredHelpTexts = [];
+    const errorColored = (el) => {
+      const c = toRgba(getComputedStyle(el).color);
+      return c.r > 140 && c.r > c.g * 1.6 && c.r > c.b * 1.6;
+    };
+    const errorMarked = (el) => !!el.closest('[class*=error i], [class*=invalid i], [class*=danger i], [id*=error i], [role=alert]');
+    const nearInvalidField = (el) => {
+      const group = el.closest('fieldset, .field, [class*=field i], [class*=form-group i], [class*=control i], li, td') || el.parentElement;
+      return !!group && !!group.querySelector('[aria-invalid=true], :user-invalid');
+    };
     for (const el of all) {
       if (!visible(el) || !hasOwnText(el)) continue;
       const text = ownText(el);
@@ -575,6 +585,12 @@
       const isLinked = linked.some((l) => l === el || l.contains(el) || el.contains(l));
       const live = el.closest('[role=alert], [role=status], [aria-live]:not([aria-live=off]), output');
       if (isLinked) continue;
+      let looksLikeError = false;
+      try { looksLikeError = errorColored(el) || errorMarked(el) || nearInvalidField(el); } catch (e) { looksLikeError = errorColored(el) || errorMarked(el); }
+      if (!looksLikeError && !live) {
+        ignoredHelpTexts.push({ selector: cssPath(el), text: text.slice(0, 80), kind: 'keyword-without-error-signal' });
+        continue;
+      }
       if (live) {
         announcedSummaries.push({ selector: cssPath(el), text: text.slice(0, 80), kind: 'announced-summary', links_to_fields: !!live.querySelector('a[href^="#"]') });
       } else {
@@ -595,6 +611,7 @@
       invalid_fields: fields.filter((f) => f.getAttribute('aria-invalid') === 'true').length,
       items: items.slice(0, maxItems),
       announced_summaries: announcedSummaries,
+      ignored_help_texts: ignoredHelpTexts.slice(0, maxItems),
     };
   }
 
@@ -651,6 +668,67 @@
     checks.document = { controls: ['NAV-01', 'ACC-12'], result: items.length ? 'issues' : 'clean', title: document.title, lang, items };
   }
 
+  if (wants('spacing')) {
+    const minGap = opts.minGap ?? 4;
+    const items = [];
+    const hasBox = (cs) => toRgba(cs.backgroundColor).a > 0 || parseFloat(cs.borderLeftWidth) > 0 || parseFloat(cs.borderRightWidth) > 0 || cs.boxShadow !== 'none';
+    const contentRect = (el) => {
+      if (el.matches(INTERACTIVE) || hasBox(getComputedStyle(el))) return rectOf(el);
+      let union = null;
+      for (const d of el.querySelectorAll('*')) {
+        if (!visible(d)) continue;
+        const relevant = d.matches(INTERACTIVE) || d.matches('img, svg, video, canvas') || hasOwnText(d) || hasBox(getComputedStyle(d));
+        if (!relevant) continue;
+        const r = rectOf(d);
+        union = union ? { left: Math.min(union.left, r.left), right: Math.max(union.right, r.right), top: Math.min(union.top, r.top), bottom: Math.max(union.bottom, r.bottom) } : { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      }
+      if (!union && hasOwnText(el)) return rectOf(el);
+      return union;
+    };
+    const relevantChild = (el) => el.matches(INTERACTIVE) || el.querySelector(INTERACTIVE) || hasBox(getComputedStyle(el));
+    const joinedSegments = (a, b) => {
+      const ca = getComputedStyle(a), cb = getComputedStyle(b);
+      return a.tagName === b.tagName && parseFloat(ca.borderTopRightRadius) === 0 && parseFloat(cb.borderTopLeftRadius) === 0;
+    };
+    const parents = new Set();
+    for (const el of interactive) {
+      for (let n = el.parentElement, depth = 0; n && n !== document.body && depth < 4; n = n.parentElement, depth += 1) parents.add(n);
+    }
+    for (const parent of parents) {
+      const kids = [...parent.children]
+        .filter((k) => visible(k) && !['absolute', 'fixed'].includes(getComputedStyle(k).position) && getComputedStyle(k).display !== 'inline' && relevantChild(k))
+        .map((k) => ({ el: k, r: contentRect(k) }))
+        .filter((k) => k.r)
+        .sort((a, b) => a.r.left - b.r.left);
+      for (let i = 0; i + 1 < kids.length; i += 1) {
+        const a = kids[i], b = kids[i + 1];
+        const overlapV = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+        if (overlapV < Math.min(a.r.bottom - a.r.top, b.r.bottom - b.r.top) * 0.5) continue;
+        if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+        const gap = b.r.left - a.r.right;
+        if (gap >= minGap) continue;
+        if (gap >= 0 && joinedSegments(a.el, b.el)) continue;
+        items.push({
+          selector: cssPath(a.el),
+          neighbor: cssPath(b.el),
+          gap_px: Math.round(gap * 10) / 10,
+          kind: gap < -1 ? 'overlapping-neighbors' : 'touching-neighbors',
+          box: docBox({ left: Math.min(a.r.left, b.r.left), top: Math.min(a.r.top, b.r.top), width: Math.max(a.r.right, b.r.right) - Math.min(a.r.left, b.r.left), height: Math.max(a.r.bottom, b.r.bottom) - Math.min(a.r.top, b.r.top) }),
+          group: cssPath(parent),
+        });
+      }
+    }
+    const unique = [];
+    for (const item of items) if (!unique.some((u) => u.selector === item.selector && u.neighbor === item.neighbor)) unique.push(item);
+    checks.spacing = {
+      controls: ['GEO-04', 'GEO-02'],
+      result: unique.length ? 'issues' : 'clean',
+      min_gap_px: minGap,
+      note: 'Gap between the visible content of neighboring blocks in a row. Joined segmented controls are ignored.',
+      items: unique.slice(0, maxItems),
+    };
+  }
+
   if (wants('landmarks')) {
     const mains = document.querySelectorAll('main, [role=main]').length;
     const skip = [...document.querySelectorAll('a[href^="#"]')].slice(0, 3).find((a) => {
@@ -658,9 +736,18 @@
       return target && (target.matches('main, [role=main]') || target.closest('main, [role=main]'));
     });
     const items = [];
+    const info = [];
     if (mains !== 1) items.push({ kind: `main-${mains}` });
-    if (!skip) items.push({ kind: 'missing-skip-link' });
-    checks.landmarks = { controls: ['ACC-10'], result: items.length ? 'issues' : 'clean', items };
+    if (!skip) {
+      const main = document.querySelector('main, [role=main]');
+      const tabbable = [...document.querySelectorAll('a[href], button, input:not([type=hidden]), select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+        .filter((el) => !el.disabled && visible(el) && !el.closest('[inert]'));
+      const before = main ? tabbable.filter((el) => !main.contains(el) && (el.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING)).length : tabbable.length;
+      const threshold = opts.skipLinkThreshold ?? 6;
+      if (main && before <= threshold) info.push({ kind: 'missing-skip-link', controls_before_main: before, note: `Only ${before} focusable elements before main (threshold ${threshold}): a skip link adds little here.` });
+      else items.push({ kind: 'missing-skip-link', controls_before_main: before });
+    }
+    checks.landmarks = { controls: ['ACC-10'], result: items.length ? 'issues' : 'clean', items, info };
   }
 
   return { viewport: { width: vw, height: vh }, scroll: { x: sx, y: sy }, document_height: document.documentElement.scrollHeight, checks };

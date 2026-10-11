@@ -14,7 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from _common import AXE_VERSION, CACHE_DIR, VENV_DIR, emit, now_iso, venv_python, write_json
+from _common import AXE_VERSION, BROWSER_CACHE, CACHE_DIR, VENV_DIR, app_window_viewports, emit, now_iso, project_config, read_json, system_browser_candidates, venv_python, write_json
 
 
 def which(*names):
@@ -93,6 +93,10 @@ def main():
             "note": "A detected screen reader is not driven automatically: ACC-11 remains a human check.",
         },
         "CAP-DEVICE": {"adb_devices": None},
+        "CAP-APP-WINDOW": dict(zip(("viewports", "source"), app_window_viewports())),
+        "browser_memory": {"cached": read_json(BROWSER_CACHE, {}) or {}, "system_browsers": system_browser_candidates(),
+                           "note": "The first browser that launches is remembered in the cache; no --browser-path needed afterwards."},
+        "project_config": project_config(),
     }
     if which("adb"):
         devices = subprocess.run(["adb", "devices"], capture_output=True, text=True, timeout=10).stdout.strip().splitlines()[1:]

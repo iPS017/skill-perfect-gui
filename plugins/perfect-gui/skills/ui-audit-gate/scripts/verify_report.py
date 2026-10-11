@@ -15,7 +15,19 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from _common import load_config, now_iso, read_json, write_json  # noqa: E402
+from _common import load_config, now_iso, read_json, ui_snapshot, write_json  # noqa: E402
+
+EVIDENCE_INDEX = {}
+
+
+def closest_evidence(run, proof):
+    import difflib
+
+    key = str(run)
+    if key not in EVIDENCE_INDEX:
+        EVIDENCE_INDEX[key] = [p.relative_to(run).as_posix() for p in Path(run).rglob("*") if p.is_file()]
+    matches = difflib.get_close_matches(str(proof), EVIDENCE_INDEX[key], n=1, cutoff=0.6)
+    return f" (closest existing file: {matches[0]})" if matches else ""
 
 DECISIONS = ["VALIDATED_FULL_PROTOCOL", "VALIDATED_TESTED_SCOPE", "VALIDATED_WITH_EXCEPTIONS", "NOT_VALIDATED", "LIMITED_VALIDATION"]
 DECISION_LABELS = {
@@ -90,7 +102,7 @@ def verify(run):
                 errors.append(f"{cid}: 'passed' without evidence")
             for proof in proofs:
                 if not exists(run, proof):
-                    errors.append(f"{cid}: evidence not found {proof}")
+                    errors.append(f"{cid}: evidence not found {proof}{closest_evidence(run, proof)}")
         if status in ("not_verified", "not_applicable") and not control.get("reason"):
             errors.append(f"{cid}: '{status}' without a reason")
         if status == "not_verified" and control.get("reason_type") not in REASON_TYPES:
@@ -117,7 +129,7 @@ def verify(run):
             errors.append(f"{fid}: invalid nature {finding.get('nature')!r} (REQUIREMENT, HYPOTHESIS, PREFERENCE)")
         for proof in finding.get("evidence") or []:
             if not exists(run, proof):
-                errors.append(f"{fid}: evidence not found {proof}")
+                errors.append(f"{fid}: evidence not found {proof}{closest_evidence(run, proof)}")
         status = finding.get("status")
         if status == "fixed":
             retest = finding.get("retest") or {}
@@ -125,7 +137,7 @@ def verify(run):
                 errors.append(f"{fid}: 'fixed' without a passed retest backed by evidence")
             for proof in retest.get("evidence") or []:
                 if not exists(run, proof):
-                    errors.append(f"{fid}: retest evidence not found {proof}")
+                    errors.append(f"{fid}: retest evidence not found {proof}{closest_evidence(run, proof)}")
         if status == "failed_unresolved" and not (finding.get("blocking_cause") and finding.get("required_action")):
             errors.append(f"{fid}: 'failed_unresolved' requires blocking_cause and required_action")
         if status not in OPEN_STATUSES:
@@ -174,12 +186,7 @@ def verify(run):
 
     log = read_json(run / "research" / "log.json", []) or []
     refs = read_json(run / "research" / "references.json", []) or []
-    seen = set()
-    for entry in log:
-        if entry.get("type") == "visit" and entry.get("failed"):
-            continue
-        for url in entry.get("urls", []) + ([entry["url"]] if entry.get("url") else []):
-            seen.add(normalize(url))
+    seen = {normalize(entry["url"]) for entry in log if entry.get("type") == "visit" and not entry.get("failed") and entry.get("url")}
     valid_refs = []
     for ref in refs:
         if ref.get("access_status") in ("accessed", "revalidated"):
@@ -400,6 +407,10 @@ def main():
             write_json(run / "report.json", report)
             result = verify(args.run)
             result["applied"] = True
+            project = run.resolve().parent.parent
+            if run.resolve().parent.name == ".ui-audit":
+                write_json(project / ".ui-audit" / "snapshot.json", ui_snapshot(project))
+                result["snapshot"] = "UI files snapshot saved: the next audit compares against this audited state"
         else:
             result["applied"] = False
             result["apply_refused"] = "inconsistencies to fix before writing the decision"

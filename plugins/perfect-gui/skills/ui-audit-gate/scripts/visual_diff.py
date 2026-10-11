@@ -9,7 +9,7 @@ Example:
 import argparse
 from pathlib import Path
 
-from _common import emit, ensure_module, now_iso
+from _common import emit, ensure_module, now_iso, write_json
 
 
 def compare(before_path, after_path, out_path, tolerance):
@@ -62,16 +62,21 @@ def main():
             continue
         entry = compare(before_root / rel, after_root / rel, out_root / rel, args.tolerance)
         entry["file"] = str(rel)
+        entry["name"] = rel.stem
+        entry["config_id"] = rel.parts[0] if len(rel.parts) > 1 else None
         entry["flagged"] = entry["status"] == "size-different" or entry["changed_ratio"] > args.max_ratio
         results.append(entry)
 
     flagged = [r for r in results if r.get("flagged") or r["status"].startswith("missing")]
-    emit({
-        "tool": "visual_diff", "created": now_iso(), "compared": len(results), "flagged": len(flagged),
+    payload = {
+        "tool": "visual_diff", "created": now_iso(), "before": str(before_root), "after": str(after_root),
+        "compared": len(results), "flagged": len(flagged),
         "result": "issues" if flagged else "clean",
         "reminder": "Qualify each difference: expected or regression. Identical capture conditions required (manifests).",
         "items": results,
-    })
+    }
+    write_json(out_root / "diff.json", payload)
+    emit(payload)
 
 
 if __name__ == "__main__":

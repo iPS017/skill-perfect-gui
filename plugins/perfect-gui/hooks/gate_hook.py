@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """ui-audit-gate Stop hook: blocks the end of the turn once if interface files were
-changed in the git repository without a more recent consistent audit report.
+changed without a more recent consistent audit report. In a git repository, changes come from
+git status; outside git, from the files written or edited by Claude in this session (transcript).
 
 Settings: variable UI_AUDIT_GATE=block|warn|off, or .ui-audit/config.json
 {"gate": {"mode": "block", "include": ["*.tpl"], "exclude": ["docs/*"]}}.
@@ -13,12 +14,43 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "skills" / "ui-audit-gate" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
-from _common import is_ui_path  # noqa: E402
+from _common import is_ui_path, project_root  # noqa: E402
 
 
 def git(*args, cwd):
     result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=10)
     return result.stdout if result.returncode == 0 else None
+
+
+EDIT_TOOLS = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+
+
+def session_edited_files(transcript_path, root):
+    edited = set()
+    if not transcript_path or not Path(transcript_path).exists():
+        return edited
+    with open(transcript_path, encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            if '"tool_use"' not in line:
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            content = (entry.get("message") or {}).get("content")
+            if not isinstance(content, list):
+                continue
+            for block in content:
+                if not isinstance(block, dict) or block.get("type") != "tool_use" or block.get("name") not in EDIT_TOOLS:
+                    continue
+                target = (block.get("input") or {}).get("file_path") or (block.get("input") or {}).get("notebook_path")
+                if not target:
+                    continue
+                try:
+                    edited.add(Path(target).resolve().relative_to(root).as_posix())
+                except ValueError:
+                    continue
+    return edited
 
 
 def respond(payload):
@@ -33,9 +65,7 @@ def main():
         hook_input = {}
     cwd = hook_input.get("cwd") or os.getcwd()
     top = git("rev-parse", "--show-toplevel", cwd=cwd)
-    if not top:
-        sys.exit(0)
-    root = Path(top.strip())
+    root = Path(top.strip()) if top else project_root(cwd)
     config = {}
     config_path = root / ".ui-audit" / "config.json"
     if config_path.exists():
@@ -47,14 +77,19 @@ def main():
     if mode == "off":
         sys.exit(0)
 
-    status = git("status", "--porcelain", "--untracked-files=all", cwd=root) or ""
     changed = []
-    for line in status.splitlines():
-        path = line[3:].split(" -> ")[-1].strip().strip('"')
-        if path.startswith(".ui-audit/") or line[:2].strip() == "D":
-            continue
-        if is_ui_path(path, config.get("include", []), config.get("exclude", [])):
-            changed.append(path)
+    if top:
+        status = git("status", "--porcelain", "--untracked-files=all", cwd=root) or ""
+        for line in status.splitlines():
+            path = line[3:].split(" -> ")[-1].strip().strip('"')
+            if path.startswith(".ui-audit/") or line[:2].strip() == "D":
+                continue
+            if is_ui_path(path, config.get("include", []), config.get("exclude", [])):
+                changed.append(path)
+    else:
+        for path in sorted(session_edited_files(hook_input.get("transcript_path"), root.resolve())):
+            if (root / path).exists() and is_ui_path(path, config.get("include", []), config.get("exclude", [])):
+                changed.append(path)
     if not changed:
         sys.exit(0)
     latest_change = max((root / p).stat().st_mtime for p in changed if (root / p).exists()) if any((root / p).exists() for p in changed) else 0

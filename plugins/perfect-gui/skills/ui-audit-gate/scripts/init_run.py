@@ -9,7 +9,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
-from _common import SKILL_DIR, emit, now_iso, safe_name, write_json
+from _common import SKILL_DIR, emit, now_iso, safe_name, ui_snapshot, write_json
 
 
 def ensure_gitignore(root):
@@ -81,8 +81,11 @@ def main():
         "human_checks": [],
         "decision": None,
     })
+    snapshot = ui_snapshot(root)
+    write_json(run / "snapshot-start.json", snapshot)
     gitignore = "unchanged (--no-gitignore)" if args.no_gitignore else ensure_gitignore(root)
     emit({"tool": "init_run", "run": str(run), "run_id": run_id, "gitignore": gitignore,
+          "ui_files_snapshot": f"{len(snapshot['files'])} UI files ({snapshot['source']})",
           "next": "probe.py --out RUN/capabilities.json then impact_scan.py --out RUN/impact.json"})
 
 

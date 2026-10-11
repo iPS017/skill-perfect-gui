@@ -15,7 +15,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse
 
 from _common import (
     DESTRUCTIVE_PATTERN, SCRIPTS_DIR, SETTING_PATTERN, add_browser_args, base_parser, browser_session,
-    build_config, emit, install_mutation_guard, now_iso, open_page, resolve_viewports, run_actions,
+    build_config, emit, install_mutation_guard, load_views, now_iso, open_page, resolve_viewports, run_actions,
     stabilize, write_json,
 )
 
@@ -34,7 +34,7 @@ def discover(page, js_source):
     return page.evaluate(js_source, {"destructivePattern": DESTRUCTIVE_PATTERN, "settingPattern": SETTING_PATTERN})
 
 
-def reveal(page, url, js_source, base, args, budget):
+def reveal(page, url, js_source, base, args, budget, setup=None):
     revealed = []
     known = {c["selector"] for c in base["controls"] if c["visible"]}
     hidden = {c["selector"]: c for c in base["controls"] if not c["visible"]}
@@ -44,7 +44,7 @@ def reveal(page, url, js_source, base, args, budget):
             page.goto(url, wait_until="load")
             stabilize(page, args)
             steps = []
-            run_actions(page, [{"click": control["selector"]}], url, steps)
+            run_actions(page, list(setup or []) + [{"click": control["selector"]}], url, steps)
             page.wait_for_timeout(250)
             if normalize(page.url) != normalize(url):
                 continue
@@ -76,6 +76,7 @@ def main():
     parser.add_argument("--include", help="Regex: paths to explore")
     parser.add_argument("--exclude", default=r"(logout|deconnexion|signout|/admin/delete)", help="Regex: paths to skip")
     parser.add_argument("--reveal-budget", type=int, default=15, help="Toggles opened per page to discover hidden controls")
+    parser.add_argument("--no-views", action="store_true", help="Do not explore the named views of .ui-audit/views.json")
     parser.add_argument("--max-query-variants", type=int, default=3, help="Variants of the same page with different URL parameters")
     args = parser.parse_args()
 
@@ -141,6 +142,23 @@ def main():
                     external.add(link["href"])
                 elif depth + 1 <= args.max_depth and normalize(link["href"]) not in visited:
                     queue.append((link["href"], depth + 1, found["url"]))
+        explored_views = []
+        if not args.no_views:
+            for name in load_views():
+                try:
+                    page.goto(args.url, wait_until="load")
+                    stabilize(page, args)
+                    run_actions(page, [{"view": name}], args.url, [])
+                    stabilize(page, args)
+                    found = discover(page, js_source)
+                except Exception as exc:
+                    skipped.append({"url": args.url, "reason": f"view {name} could not be opened: {str(exc).splitlines()[0][:160]}"})
+                    continue
+                found.update({"status": None, "depth": 0, "referrer": None, "view": name, "url": args.url})
+                if args.reveal_budget:
+                    found["controls"].extend(reveal(page, args.url, js_source, found, args, args.reveal_budget, setup=[{"view": name}]))
+                pages.append(found)
+                explored_views.append(name)
         context.close()
 
     remaining = sorted({normalize(u) for u, _, _ in queue} - visited)
@@ -168,8 +186,10 @@ def main():
         "external_links": sorted(external)[:200],
         "not_explored": {"budget_reached": remaining[:200], "ignored": skipped[:200]},
         "blocked_requests": blocked[:100],
+        "views": explored_views,
         "summary": {
             "pages": len(pages),
+            "views": len(explored_views),
             "controls": sum(kinds.values()),
             "by_kind": kinds,
             "forms": sum(len(p.get("forms", [])) for p in pages),

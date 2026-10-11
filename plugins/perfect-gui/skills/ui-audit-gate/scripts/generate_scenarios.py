@@ -156,10 +156,13 @@ def build(site_map, args):
         book.skip(blocked_page["url"], f"page refused during exploration: {blocked_page['reason']}")
     explored_paths = set()
     for found in pages:
-        page = path_of(found["url"])
-        goto = {"goto": page}
-        book.add("page", f"Load {page}", page, [goto, {"snapshot": "load"}], checks=["render", "console"])
-        bare_path = urlparse(found["url"]).path
+        url_path = path_of(found["url"])
+        view = found.get("view")
+        page = f"{url_path} (view {view})" if view else url_path
+        opening = [{"goto": url_path}] + ([{"view": view}] if view else [])
+        goto = opening[0]
+        book.add("page", f"Load {page}", page, opening + [{"snapshot": "load"}], checks=["render", "console"], key_extra=f"view:{view}" if view else "")
+        bare_path = urlparse(found["url"]).path + (f"#view:{view}" if view else "")
         if bare_path in explored_paths:
             continue
         explored_paths.add(bare_path)
@@ -176,7 +179,7 @@ def build(site_map, args):
             if not control.get("visible", True) and not prerequisites:
                 book.skip(label, "hidden element that no explored interaction reveals (hover menu, special state)")
                 continue
-            base = [goto, *prerequisites]
+            base = [*opening, *prerequisites]
             if control["kind"] == "toggle":
                 popup = control.get("haspopup") not in (None, "", "false")
                 closing = [{"press": "Escape"}, {"snapshot": "closed-by-escape"}] if popup else [{"click_optional": control["selector"]}, {"snapshot": "closed"}]
@@ -222,7 +225,7 @@ def build(site_map, args):
             if not form.get("visible", True) and not form.get("prerequisites"):
                 book.skip(label, "hidden form that no explored interaction reveals")
                 continue
-            base = [goto, *form.get("prerequisites", [])]
+            base = [*opening, *form.get("prerequisites", [])]
             risk = "mutation" if form["risk"] in ("mutation", "destructive") else "safe"
             if form["risk"] == "destructive" and not args.allow_destructive:
                 book.skip(label, "destructive form: input scenes only, no submission")
@@ -289,6 +292,9 @@ def build(site_map, args):
 
 
 def to_playwright(suite, allow_mutations):
+    from _common import load_views
+
+    views = load_views()
     lines = [
         "import { test, expect, type Page } from '@playwright/test';",
         "",
@@ -322,7 +328,13 @@ def to_playwright(suite, allow_mutations):
         lines.append("    const errors: string[] = [];")
         lines.append("    page.on('pageerror', (error) => errors.push(String(error)));")
         shot = 0
+        expanded = []
         for action in scene["actions"]:
+            if "view" in action:
+                expanded.extend(views.get(action["view"], []))
+            else:
+                expanded.append(action)
+        for action in expanded:
             (kind, value), = action.items()
             if kind == "goto":
                 lines.append(f"    await page.goto(BASE + {json.dumps(value, ensure_ascii=False)});")

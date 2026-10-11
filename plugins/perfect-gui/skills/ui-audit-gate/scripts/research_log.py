@@ -42,15 +42,11 @@ def normalize(url):
     return f"{parsed.scheme}://{parsed.netloc.lower()}{parsed.path.rstrip('/')}" + (f"?{parsed.query}" if parsed.query else "")
 
 
-def logged_urls(log):
+def visited_urls(log):
     urls = {}
     for entry in log:
-        for url in entry.get("urls", []) + ([entry["url"]] if entry.get("url") else []):
-            if entry.get("type") == "visit" and entry.get("failed"):
-                continue
-            urls.setdefault(normalize(url), entry["at"])
-            if entry.get("type") == "visit":
-                urls[normalize(url)] = entry["at"]
+        if entry.get("type") == "visit" and not entry.get("failed") and entry.get("url"):
+            urls[normalize(entry["url"])] = entry["at"]
     return urls
 
 
@@ -116,11 +112,11 @@ def main():
         if ref["access_status"] not in STATUSES:
             print(json.dumps({"status": "refused", "reason": f"access_status must be one of {sorted(STATUSES)}"}, ensure_ascii=False))
             sys.exit(1)
-        seen = logged_urls(log)
+        seen = visited_urls(log)
         if ref["access_status"] in ("accessed", "revalidated"):
             when = seen.get(normalize(ref["url"]))
             if not when:
-                print(json.dumps({"status": "refused", "reason": "URL not traced in this run's log: record the query or the visit first (no unseen sources)"}, ensure_ascii=False))
+                print(json.dumps({"status": "refused", "reason": "URL not traced as visited in this run: open the page and record it with `visit` first (a URL seen only in search results does not count as accessed)"}, ensure_ascii=False))
                 sys.exit(1)
             ref["accessed_at"] = when
         ref.setdefault("published_or_updated", None)

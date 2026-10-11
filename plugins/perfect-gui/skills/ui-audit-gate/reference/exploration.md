@@ -125,3 +125,15 @@ It only acts if the project has `ui-scenes/scenes.json` (or the path set in `.ui
 - Menus that only open on hover are not discovered. They are listed in `not_covered` when their items exist but stay hidden.
 - `dead-click` has medium confidence, since an action can act on a canvas, the clipboard or the sound without changing the DOM.
 - Screenshots depend on the engine and the machine, so baseline and review must run in the same environment (same browser, same OS, ideally in CI).
+
+## Apps without a URL per screen
+
+Tab-based apps, stores and desktop web-view apps (Tauri, Electron) often keep one URL for every screen. Declare each screen as a named view in `.ui-audit/views.json` (`{"views": {"skin": [actions]}}`): `explore_site.py` explores every named view as if it were a page, and the generated scenes open the view before acting (`{"view": "skin"}`). The Playwright export inlines the view actions. Log in once with `login.py --remember` so that exploration and review run in the logged-in session.
+
+## Without git, with custom release commands
+
+The review and the pre-publish hook work without git: the UI fingerprint walks the project files. A project that ships with its own script (`scripts/build-rpm.sh`, `make release`, `./deploy.sh`) adds it to `.ui-audit/config.json`:
+
+```json
+{"publish_gate": {"patterns": ["scripts/build-rpm\\.sh", "\\bmake\\s+release\\b"]}}
+```

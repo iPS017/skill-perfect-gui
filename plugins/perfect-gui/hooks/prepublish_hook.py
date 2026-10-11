@@ -17,7 +17,7 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "skills" / "ui-audit-gate" / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
-from _common import ui_fingerprint  # noqa: E402
+from _common import project_root, ui_fingerprint  # noqa: E402
 
 PUBLISH_PATTERNS = [
     r"\bgit\s+push\b", r"\b(npm|pnpm|bun)\s+publish\b", r"\byarn\s+(npm\s+)?publish\b",
@@ -42,7 +42,7 @@ def main():
     command = (hook_input.get("tool_input") or {}).get("command") or ""
     cwd = hook_input.get("cwd") or os.getcwd()
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, capture_output=True, text=True)
-    root = Path(top.stdout.strip()) if top.returncode == 0 else Path(cwd)
+    root = Path(top.stdout.strip()) if top.returncode == 0 else project_root(cwd)
     config = {}
     config_path = root / ".ui-audit" / "config.json"
     if config_path.exists():

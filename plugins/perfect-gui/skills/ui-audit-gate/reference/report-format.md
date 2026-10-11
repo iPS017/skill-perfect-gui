@@ -24,6 +24,18 @@
     report.md                 # produced by verify_report.py --render
 ```
 
+## Generated files
+
+| File | Produced by | Content |
+|---|---|---|
+| `snapshot-start.json` | init_run.py | UI files and hashes when the audit started |
+| `summary.json`, `summary.md` | summarize.py, report_build.py | Deduplicated candidates (same check, kind and selector across views), results per check and view |
+| `flows/flows.json` | flow_run.py | Steps, assertions, failures and screenshots per flow and viewport |
+| `diff/diff.json` | visual_diff.py | Named before/after pairs with their changed ratio |
+| `.ui-audit/snapshot.json` | verify_report.py --apply (projects without git) | UI files state at the last applied audit |
+
+`report_build.py` also adds a `candidates` list to `report.json`. Turn each one into a finding or dismiss it with a reason before the decision.
+
 ## `report.json`
 
 `init_run.py` creates this skeleton. The agent completes it, then `verify_report.py --apply --render` writes the decision and produces `report.md`.

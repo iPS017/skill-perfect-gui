@@ -34,7 +34,7 @@ Requirements: Python 3.9 or later and git. Node is not needed.
 ## Usage
 
 - **Automatic**: the skill triggers when Claude creates or modifies an interface (page, component, style, token, form, navigation, displayed translation, and so on).
-- **Explicit**: `/perfect-gui:ui-audit [N1|N2|N3] [url] [scope]`.
+- **Explicit**: `/perfect-gui:ui-audit [N1|N2|N3] [url] [scope]`, or just ask for a "perfect gui" audit.
 - **Mechanical gate**: a `Stop` hook blocks the end of the turn once if interface files changed in the repository without a newer, consistent audit report. To disable it: `UI_AUDIT_GATE=off` (or `warn`), or `.ui-audit/config.json`:
 
 ```json
@@ -51,6 +51,17 @@ A hook refuses `git push`, `npm publish`, `vercel`, `netlify deploy`, and simila
 
 The same suite can be exported to `@playwright/test` (`--export-playwright tests/ui-scenes.spec.ts`) to run in CI. Details are in [exploration.md](plugins/perfect-gui/skills/ui-audit-gate/reference/exploration.md).
 
+### Project setup
+
+Put a project's defaults in `.ui-audit/config.json` (viewports, browser, session state, named views, gate settings, custom release commands) instead of repeating flags:
+
+- **Apps without a URL per screen** (tab-based apps, Tauri or Electron launchers): declare named views in `.ui-audit/views.json` and pass `--view NAME`; the exploration covers every named view.
+- **Logged-in screens**: `login.py --remember` replays the login once (passwords come from environment variables, never from files) and saves the session for every other script.
+- **Desktop web-view apps**: `--viewports app` reads the window sizes from `src-tauri/tauri.conf.json` or the Electron main file; `--viewports sweep:800-1920:80` checks every width in between.
+- **User flows**: `flow_run.py` runs flows with assertions (visible, text, attribute, focus, no console error), uploads, offline steps and a keyboard-only mode, with screenshots as evidence.
+- **Reports**: `summarize.py` merges every output into deduplicated candidates; `report_build.py` pre-fills the report so only the judgments remain.
+- **No git**: changes are detected from a snapshot of the last audited state or from modification dates, and the Stop hook reads the files Claude edited in the session.
+
 Evidence (screenshots, measurements, reports) goes into `.ui-audit/` at the root of the audited project. This folder is added to `.gitignore` by default.
 
 ## Contents
@@ -63,7 +74,7 @@ plugins/perfect-gui/
     SKILL.md                           skill instructions (9-step workflow, rules, decision)
     reference/                         controls, configurations, research, severity, gate, tools, devices, report, exploration
     config/                            viewports, levels and fundamental controls, edge-case data sets
-    scripts/                           capture, inspection, keyboard, resize, diff, impact, research, verification, exploration, scenes, review
+    scripts/                           capture, inspection, keyboard, resize, flows, login, diff, impact, research, summary, report, exploration, scenes, review
     schemas/ templates/
   commands/ui-audit.md                 /perfect-gui:ui-audit command
   commands/ui-scenes.md                /perfect-gui:ui-scenes command
