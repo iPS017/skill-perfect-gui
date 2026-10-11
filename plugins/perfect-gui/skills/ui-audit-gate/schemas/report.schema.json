@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Rapport ui-audit-gate",
+  "type": "object",
+  "required": ["run_id", "niveau", "mode", "recherche", "controles", "decision"],
+  "properties": {
+    "run_id": {"type": "string"},
+    "titre": {"type": "string"},
+    "declenchement": {"enum": ["C1", "C2", "C3"]},
+    "niveau": {"enum": ["N1", "N2", "N3"]},
+    "niveau_calcule": {"enum": ["N1", "N2", "N3"]},
+    "couverture_reduite": {"type": "boolean"},
+    "justification_reduction": {"type": ["string", "null"]},
+    "mode": {"enum": ["complet", "maquette", "sans_execution"]},
+    "baseline": {"enum": ["avant", "first-render", "indisponible"]},
+    "recherche": {
+      "type": "object",
+      "required": ["statut"],
+      "properties": {
+        "statut": {"enum": ["realisee", "partielle", "non_realisee"]},
+        "cause": {"type": ["string", "null"]}
+      }
+    },
+    "comparaisons": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ref", "observation", "principe", "ecart", "adaptation", "benefice", "nature"]
+      }
+    },
+    "changement_visuel": {"type": "boolean"},
+    "controles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "statut"],
+        "properties": {
+          "id": {"type": "string"},
+          "statut": {"enum": ["reussi", "echoue", "non_verifie", "non_applicable"]},
+          "nature": {"type": "array", "items": {"enum": ["visuel", "structurel", "comportemental", "assistif", "humain"]}},
+          "configs": {"type": "array", "items": {"type": "string"}},
+          "preuves": {"type": "array", "items": {"type": "string"}},
+          "raison": {"type": "string"},
+          "raison_type": {"enum": ["technique", "humain", "appareil_reel", "hors_perimetre", "autre"]}
+        }
+      }
+    },
+    "defauts": {"type": "array", "items": {"$ref": "finding.schema.json"}},
+    "corrections": {"type": "array"},
+    "avant_apres": {
+      "type": "array",
+      "items": {"type": "object", "required": ["apres"], "properties": {"config_id": {"type": "string"}, "avant": {"type": "string"}, "apres": {"type": "string"}, "diff": {"type": "string"}, "commentaire": {"type": "string"}}}
+    },
+    "decision": {"enum": [null, "VALIDEE_PROTOCOLE_COMPLET", "VALIDEE_PERIMETRE_TESTE", "VALIDEE_AVEC_EXCEPTIONS", "NON_VALIDEE", "VALIDATION_LIMITEE"]}
+  }
+}

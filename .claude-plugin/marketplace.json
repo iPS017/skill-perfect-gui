@@ -1,0 +1,24 @@
+{
+  "name": "skill-perfect-gui",
+  "owner": {
+    "name": "iPS017",
+    "url": "https://github.com/iPS017"
+  },
+  "metadata": {
+    "description": "Plugins d'audit et d'amélioration UI/UX pour Claude Code",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "perfect-gui",
+      "source": "./plugins/perfect-gui",
+      "description": "Barrière qualité UI/UX : audit du rendu réel, recherche Web tracée, corrections et décision de validation prouvée.",
+      "version": "1.0.0",
+      "author": {
+        "name": "iPS017"
+      },
+      "category": "development",
+      "keywords": ["ui", "ux", "accessibility", "responsive", "audit"]
+    }
+  ]
+}

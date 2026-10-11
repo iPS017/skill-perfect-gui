@@ -389,7 +389,7 @@ Légende des colonnes : **Nat.** V=visuel, S=structurel, C=comportemental, A=ass
 
 ### 6.1 Contrôles fondamentaux (exécutés à tous les niveaux)
 
-GEO-01, GEO-02, GEO-03, GEO-05, STK-01, STK-02, TXT-01, CTA-01, CTA-02, CTA-03, FRM-01, FRM-03 (si formulaire), COL-01, NAV-01, PAR-01, ACC-01, ACC-02, ACC-03, ACC-04, ACC-05, ROB-01, DS-01, et RSP-01 à RSP-03 du §7.
+GEO-01, GEO-02, GEO-03, GEO-05, STK-01, STK-02, TXT-01, CTA-01, CTA-02, CTA-03, FRM-01, FRM-03 (si formulaire), COL-01, NAV-01, PAR-01, ACC-01, ACC-02, ACC-03, ACC-04, ACC-05, ROB-01, DS-01, ainsi que la couverture des viewports P0 (§7.3).
 
 ### 6.2 Géométrie et mise en page (GEO)
 
@@ -1095,10 +1095,12 @@ Une **validation** (toute décision commençant par « VALIDÉE ») est impossib
 ### 12.3 Décisions
 
 ```text
-si mode ∈ {maquette, sans-exécution}:
+si B1..B6 (B2 non couvert par une exception):
+    décision = "NON VALIDÉE"
+sinon si mode ∈ {maquette, sans-exécution}:
     décision = "VALIDATION LIMITÉE : <mode>"
-sinon si B1..B6:
-    décision = "NON VALIDÉE"   (sauf B2 couvert par exception → "VALIDÉE AVEC EXCEPTIONS")
+sinon si B2 couvert par une exception:
+    décision = "VALIDÉE AVEC EXCEPTIONS"
 sinon si recherche Web non réalisée
      ou contrôles hors fondamentaux `non vérifié` dans le niveau requis
      ou couverture réduite sous le niveau calculé:

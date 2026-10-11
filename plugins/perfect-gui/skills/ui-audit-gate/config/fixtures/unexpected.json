@@ -1,0 +1,16 @@
+{
+  "null": null,
+  "zero": 0,
+  "negatif": -1250.5,
+  "tres_grand": 98765432109876,
+  "decimal_long": 3.141592653589793,
+  "pourcentage_hors_borne": 134.7,
+  "date_invalide": "2026-02-30",
+  "html_echappe": "&lt;b&gt;texte&lt;/b&gt; &amp; \"guillemets\"",
+  "injection_affichee": "<img src=x onerror=alert(1)>",
+  "liste_vide": [],
+  "liste_enorme_taille": 10000,
+  "booleen_texte": "false",
+  "nan_texte": "NaN",
+  "undefined_texte": "undefined"
+}

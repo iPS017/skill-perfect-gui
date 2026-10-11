@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Réservation de séjour (application de test ui-audit-gate)</title>
+<script>
+  const scenarios = new URLSearchParams(location.search).get('scn');
+  (scenarios ? scenarios.split(',') : []).forEach((s) => document.documentElement.classList.add('scn-' + s.trim()));
+</script>
+<style>
+  :root { --gap: 16px; --fg: #1a1a1a; --bg: #ffffff; --accent: #0b57d0; --danger: #b3261e; --muted: #4a4a4a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+  header, main, footer { padding: 16px; }
+  .skip-link:not(:focus) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .site-nav ul, .tabs { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+  .site-nav a { display: inline-block; padding: 10px 12px; min-height: 44px; color: var(--accent); }
+  h1 { font-size: 1.75rem; margin: 0 0 8px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 10px 16px; border: 1px solid var(--accent); border-radius: 8px; background: var(--accent); color: #fff; font: inherit; cursor: pointer; }
+  .btn-secondary { background: #fff; color: var(--accent); }
+  .actions-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+  .tab { display: inline-block; padding: 10px 14px; min-height: 44px; border: 1px solid var(--muted); border-radius: 6px; background: #f2f2f2; color: var(--fg); }
+  .offers { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--gap); margin-top: 16px; }
+  .offer { border: 1px solid #ccc; border-radius: 8px; padding: 12px; background: #fafafa; }
+  .offer h3 { margin: 0 0 4px; font-size: 1.1rem; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-width: 420px; }
+  .field input, #search { min-height: 44px; padding: 8px; border: 1px solid #6b6b6b; border-radius: 6px; font: inherit; }
+  #search { width: 100%; max-width: 320px; display: block; }
+  .error-message { color: var(--danger); margin: 0; }
+  .hint { color: var(--muted); font-size: 0.9rem; margin: 0; }
+  .form-shell { min-height: 100vh; }
+  .terms { max-width: 60ch; }
+
+  .scn-01 #share-button { margin-top: 6px; }
+  .scn-02 .confirm-button { width: 120px; white-space: nowrap; overflow: hidden; justify-content: flex-start; }
+  .cookie-banner { display: none; }
+  .scn-03 .cookie-banner { display: block; position: fixed; left: 0; right: 0; bottom: 0; min-height: 240px; padding: 16px; background: #fff; border-top: 2px solid var(--muted); z-index: 10; }
+  @media (min-width: 600px) and (max-width: 767px) { .scn-04 .offers { grid-template-columns: repeat(3, 260px); } }
+  .scn-07 .tab { width: 84px; white-space: nowrap; overflow: hidden; padding: 10px 6px; }
+  .scn-08 .btn { font-size: 0.625rem; padding: 1px 4px; min-height: 0; }
+  .scn-10 .form-shell { min-height: 0; height: 100vh; overflow: hidden; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Aller au contenu</a>
+<header>
+  <nav class="site-nav" aria-label="Navigation principale">
+    <ul>
+      <li><a href="#main" aria-current="page">Accueil</a></li>
+      <li><a href="#offers-title">Offres</a></li>
+      <li><a href="#account-title">Compte</a></li>
+    </ul>
+  </nav>
+</header>
+<main id="main">
+  <h1>Réserver un séjour</h1>
+
+  <section aria-labelledby="offers-title">
+    <h2 id="offers-title">Offres</h2>
+    <ul class="tabs">
+      <li><a class="tab" href="#details">Détails</a></li>
+      <li><a class="tab" href="#prix">Prix</a></li>
+      <li><a class="tab" href="#avis">Avis</a></li>
+    </ul>
+    <div class="offers">
+      <article class="offer"><h3>Chalet en montagne</h3><p>Trois nuits, petit-déjeuner compris.</p></article>
+      <article class="offer"><h3>Maison au bord de mer</h3><p>Une semaine, accès direct à la plage.</p></article>
+      <article class="offer"><h3>Appartement en ville</h3><p>Deux nuits, proche des musées.</p></article>
+    </div>
+  </section>
+
+  <section aria-labelledby="actions-title">
+    <h2 id="actions-title">Actions</h2>
+    <div class="actions-row">
+      <button class="btn" type="button">Enregistrer</button>
+      <button class="btn btn-secondary" type="button" id="share-button">Partager</button>
+      <button class="btn btn-secondary" type="button">Imprimer</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="search-title">
+    <h2 id="search-title">Recherche</h2>
+    <label for="search">Rechercher une destination</label>
+    <input id="search" type="search" autocomplete="off">
+  </section>
+
+  <section aria-labelledby="account-title">
+    <h2 id="account-title">Vos coordonnées</h2>
+    <div class="form-shell">
+      <form id="booking-form" novalidate>
+        <div id="form-fields"></div>
+        <p class="hint terms">En confirmant, vous acceptez les conditions de réservation. Le séjour peut être annulé sans frais jusqu'à sept jours avant l'arrivée. Au-delà, la première nuit reste due. Les animaux de compagnie sont acceptés sur demande. Les arrivées se font entre seize et vingt heures, les départs avant onze heures. Une pièce d'identité vous sera demandée à l'accueil. Le linge de maison est fourni, le ménage de fin de séjour est inclus dans le prix affiché. Les taxes de séjour sont réglées sur place selon le barème de la commune.</p>
+        <div id="form-summary" role="alert"></div>
+        <button class="btn confirm-button" type="submit" id="submit-booking">Confirmer la réservation</button>
+      </form>
+    </div>
+  </section>
+
+  <section aria-labelledby="payment-title">
+    <h2 id="payment-title">Paiement</h2>
+    <p>Total : 120 €</p>
+    <button class="btn" type="button" id="pay-button">Payer</button>
+  </section>
+</main>
+<footer><p>Démo de test, aucune donnée réelle.</p></footer>
+
+<section class="cookie-banner" aria-label="Cookies">
+  <p>Nous utilisons des cookies pour mesurer l'audience.</p>
+  <button class="btn" type="button">Accepter</button>
+</section>
+
+<script>
+  const has = (code) => document.documentElement.classList.contains('scn-' + code);
+  const fieldsHost = document.getElementById('form-fields');
+  const renderFields = () => {
+    fieldsHost.innerHTML = `
+      <div class="field"><label for="full-name">Nom complet</label><input id="full-name" name="full-name" autocomplete="name"></div>
+      <div class="field" id="email-field"><label for="email">Adresse e-mail (obligatoire)</label>
+        <input id="email" name="email" type="email" autocomplete="email" aria-describedby="email-hint">
+        <p class="hint" id="email-hint">Format attendu : nom@exemple.fr</p></div>`;
+  };
+  renderFields();
+  if (has('09')) window.matchMedia('(min-width: 768px)').addEventListener('change', renderFields);
+
+  if (has('05')) {
+    document.getElementById('search').addEventListener('keydown', (event) => {
+      if (event.key === 'Tab') { event.preventDefault(); event.target.focus(); }
+    });
+  }
+
+  document.getElementById('booking-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    const email = document.getElementById('email');
+    const summary = document.getElementById('form-summary');
+    document.querySelectorAll('.error-message').forEach((n) => n.remove());
+    summary.textContent = '';
+    email.removeAttribute('aria-invalid');
+    email.setAttribute('aria-describedby', 'email-hint');
+    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.value)) { summary.textContent = 'Réservation enregistrée.'; return; }
+    if (has('06')) {
+      const message = document.createElement('p');
+      message.className = 'error-message';
+      message.textContent = 'Erreur';
+      document.getElementById('booking-form').prepend(message);
+      email.style.borderColor = '#b3261e';
+      return;
+    }
+    const message = document.createElement('p');
+    message.className = 'error-message';
+    message.id = 'email-error';
+    message.textContent = 'Saisissez une adresse e-mail valide, par exemple nom@exemple.fr';
+    document.getElementById('email-field').append(message);
+    email.setAttribute('aria-invalid', 'true');
+    email.setAttribute('aria-describedby', 'email-hint email-error');
+    summary.innerHTML = 'Le formulaire contient 1 erreur : <a href="#email">adresse e-mail</a>.';
+    email.focus();
+  });
+</script>
+</body>
+</html>

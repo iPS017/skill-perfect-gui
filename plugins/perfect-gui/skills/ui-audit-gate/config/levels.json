@@ -1,0 +1,27 @@
+{
+  "fondamentaux": [
+    "GEO-01", "GEO-02", "GEO-03", "GEO-05",
+    "STK-01", "STK-02",
+    "TXT-01",
+    "CTA-01", "CTA-02", "CTA-03",
+    "FRM-01", "FRM-03",
+    "COL-01",
+    "NAV-01",
+    "PAR-01",
+    "ACC-01", "ACC-02", "ACC-03", "ACC-04", "ACC-05",
+    "ROB-01",
+    "DS-01"
+  ],
+  "niveaux": {
+    "N1": {"viewports": "P0", "description": "Périmètre modifié, contrôles fondamentaux, états touchés, recherche ciblée"},
+    "N2": {"viewports": "P0,P1", "description": "N1 + consommateurs, écrans voisins, clavier complet du parcours"},
+    "N3": {"viewports": "P0,P1,P2", "description": "N2 + préférences, localisation, réseau dégradé, pliables, échantillonnage large"}
+  },
+  "regles": {
+    "N2_si_types": ["composant-partage", "logique-ui", "navigation", "formulaire"],
+    "N3_si_types": ["token", "style-global", "dependance", "config-build"],
+    "N3_si_chemins": ["checkout", "payment", "paiement", "login", "auth", "signup", "inscription", "account", "compte", "delete", "suppression"]
+  },
+  "limites_boucle": {"par_defaut": 3, "par_run": 6},
+  "max_references": {"N1": 5, "N2": 5, "N3": 8}
+}

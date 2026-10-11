@@ -1,0 +1,23 @@
+{
+  "note": "Classes d'écran en pixels CSS, pas des appareils. Recaler sur les analytics du projet si elles sont fournies.",
+  "viewports": [
+    {"id": "mobile-narrow", "width": 320, "height": 640, "dpr": 2, "pointer": "coarse", "priority": "P0"},
+    {"id": "mobile", "width": 390, "height": 844, "dpr": 3, "pointer": "coarse", "priority": "P0"},
+    {"id": "laptop", "width": 1366, "height": 768, "dpr": 1, "pointer": "fine", "priority": "P0"},
+    {"id": "desktop-md", "width": 1440, "height": 900, "dpr": 2, "pointer": "fine", "priority": "P0"},
+    {"id": "mobile-large", "width": 430, "height": 932, "dpr": 3, "pointer": "coarse", "priority": "P1"},
+    {"id": "mobile-landscape", "width": 844, "height": 390, "dpr": 3, "pointer": "coarse", "priority": "P1"},
+    {"id": "tablet-portrait", "width": 768, "height": 1024, "dpr": 2, "pointer": "coarse", "priority": "P1"},
+    {"id": "tablet-portrait-lg", "width": 820, "height": 1180, "dpr": 2, "pointer": "coarse", "priority": "P1"},
+    {"id": "tablet-landscape", "width": 1024, "height": 768, "dpr": 2, "pointer": "coarse", "priority": "P1"},
+    {"id": "tablet-landscape-lg", "width": 1180, "height": 820, "dpr": 2, "pointer": "coarse", "priority": "P1"},
+    {"id": "desktop", "width": 1920, "height": 1080, "dpr": 1, "pointer": "fine", "priority": "P1"},
+    {"id": "small-desktop", "width": 1024, "height": 640, "dpr": 1, "pointer": "fine", "priority": "P2"},
+    {"id": "split-half", "width": 960, "height": 1080, "dpr": 1, "pointer": "fine", "priority": "P2"},
+    {"id": "ultrawide", "width": 2560, "height": 1080, "dpr": 1, "pointer": "fine", "priority": "P2"},
+    {"id": "ultrawide-xl", "width": 3440, "height": 1440, "dpr": 1, "pointer": "fine", "priority": "P2"},
+    {"id": "short", "width": 1280, "height": 600, "dpr": 1, "pointer": "fine", "priority": "P2"},
+    {"id": "phone-landscape-small", "width": 640, "height": 360, "dpr": 2, "pointer": "coarse", "priority": "P2"},
+    {"id": "reflow", "width": 320, "height": 256, "dpr": 1, "pointer": "fine", "priority": "reflow"}
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "perfect-gui",
+  "version": "1.0.0",
+  "description": "Barrière qualité UI/UX : audit du rendu réel (géométrie, superpositions, débordements, accessibilité, clavier, formulaires, responsive), recherche Web tracée, corrections et décision de validation prouvée avant de déclarer une interface terminée.",
+  "author": {
+    "name": "iPS017",
+    "url": "https://github.com/iPS017"
+  },
+  "homepage": "https://github.com/iPS017/skill-perfect-gui",
+  "repository": "https://github.com/iPS017/skill-perfect-gui",
+  "keywords": ["ui", "ux", "accessibility", "a11y", "responsive", "visual-regression", "playwright", "audit", "wcag"]
+}

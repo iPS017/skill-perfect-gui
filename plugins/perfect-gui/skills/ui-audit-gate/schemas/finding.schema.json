@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Fiche de défaut ui-audit-gate",
+  "type": "object",
+  "required": ["id", "titre", "controle", "severite", "priorite", "confiance", "nature", "statut", "attendu", "observe", "preuves"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^DEF-[0-9]{3,}$"},
+    "titre": {"type": "string"},
+    "controle": {"type": "string", "description": "Identifiant de la matrice, par exemple CTA-01, ou PRJ-xx"},
+    "ecran_composant": {"type": "string"},
+    "preconditions": {"type": "string"},
+    "donnees": {"type": "string"},
+    "config_id": {"type": "string"},
+    "etapes": {"type": "array", "items": {"type": "string"}},
+    "attendu": {"type": "string"},
+    "observe": {"type": "string", "description": "Faits et mesures seulement"},
+    "interpretation": {"type": "string", "description": "Cause supposée, séparée de l'observé"},
+    "nature": {"enum": ["EXIGENCE", "HYPOTHESE", "PREFERENCE"]},
+    "preuves": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+    "reproductions": {"type": "string"},
+    "severite": {"enum": ["critique", "majeure", "moderee", "mineure"]},
+    "priorite": {"enum": ["P1", "P2", "P3"]},
+    "confiance": {"enum": ["elevee", "moyenne", "faible"]},
+    "effort": {"enum": ["S", "M", "L"]},
+    "statut": {"enum": ["ouvert", "corrige", "echoue_non_resolu", "accepte_exception"]},
+    "introduit_par_correction": {"type": "boolean"},
+    "retest": {
+      "type": ["object", "null"],
+      "properties": {
+        "statut": {"enum": ["reussi", "echoue", "non_verifie"]},
+        "config_id": {"type": "string"},
+        "preuves": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "exception": {
+      "type": ["object", "null"],
+      "required": ["acceptee_par", "date", "citation"],
+      "properties": {
+        "acceptee_par": {"type": "string"},
+        "date": {"type": "string"},
+        "citation": {"type": "string", "description": "Les mots de l'utilisateur qui accepte l'exception"},
+        "echeance": {"type": "string"}
+      }
+    },
+    "cause_blocage": {"type": ["string", "null"]},
+    "action_requise": {"type": ["string", "null"]}
+  }
+}
